@@ -53,7 +53,7 @@ export default function Pricing() {
   const annuallyPlans = [
     {
       name: "Básico",
-      price: "R$ 23",
+      price: "R$ 60",
       description: "Perfeito para pequenas empresas e startups.",
       features: [
         "Até 5 usuários",
@@ -65,7 +65,7 @@ export default function Pricing() {
     },
     {
       name: "Profissional",
-      price: "R$ 63",
+      price: "R$ 90",
       description: "Ideal para empresas em crescimento.",
       features: [
         "Até 20 usuários",
@@ -79,7 +79,7 @@ export default function Pricing() {
     },
     {
       name: "Empresarial",
-      price: "R$ 159",
+      price: "R$ 150",
       description: "Para grandes organizações com necessidades complexas.",
       features: [
         "Usuários ilimitados",
