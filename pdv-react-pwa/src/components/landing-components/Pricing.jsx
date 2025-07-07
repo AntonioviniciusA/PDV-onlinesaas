@@ -5,8 +5,33 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { useNavigate } from "react-router-dom";
 
 export default function Pricing() {
+  const navigate = useNavigate();
+
+  const handleSubscribe = (plan, isYearly) => {
+    navigate("/payment", {
+      state: {
+        plan: {
+          ...plan,
+          isYearly,
+          price: isYearly
+            ? plan.name === "Básico"
+              ? 60
+              : plan.name === "Profissional"
+              ? 90
+              : 150
+            : plan.name === "Básico"
+            ? 90
+            : plan.name === "Profissional"
+            ? 120
+            : 199,
+        },
+      },
+    });
+  };
+
   const monthlyPlans = [
     {
       name: "Básico",
@@ -185,6 +210,7 @@ export default function Pricing() {
                               : "bg-muted hover:bg-muted/80"
                           }`}
                           variant={plan.popular ? "default" : "outline"}
+                          onClick={() => handleSubscribe(plan, false)}
                         >
                           {plan.cta}
                         </Button>
@@ -244,6 +270,7 @@ export default function Pricing() {
                               : "bg-muted hover:bg-muted/80"
                           }`}
                           variant={plan.popular ? "default" : "outline"}
+                          onClick={() => handleSubscribe(plan, true)}
                         >
                           {plan.cta}
                         </Button>
