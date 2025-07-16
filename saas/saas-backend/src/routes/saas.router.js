@@ -1,11 +1,17 @@
 const express = require("express");
 const router = express.Router();
-
+const authMiddleware = require("../middlewares/auth.middleware.js");
 router.use("/cliente", require("./cliente.router.js"));
 router.use("/parceiro-saas", require("./parceiro_saas.router.js"));
-router.use("/subscriptions", require("./subscriptions.router.js"));
+router.use("/assinaturas", require("./assinaturas.router.js"));
 router.use("/plano", require("./planos.router.js"));
 router.use("/pdv", require("./pdv.router.js"));
+router.use("/verify-token", authMiddleware, (req, res) => {
+  res.json({
+    success: true,
+    message: "Token verificado com sucesso",
+  });
+});
 
 // Rota de health check para SaaS
 router.get("/health", (req, res) => {
@@ -24,7 +30,7 @@ router.get("/", (req, res) => {
     version: "1.0.0",
     endpoints: {
       auth: "/api/cliente",
-      subscriptions: "/api/subscriptions",
+      assinaturass: "/api/assinaturass",
       planos: "/api/plano",
       health: "/health",
     },

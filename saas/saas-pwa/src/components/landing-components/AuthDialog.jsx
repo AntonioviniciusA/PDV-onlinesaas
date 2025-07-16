@@ -197,12 +197,7 @@ const AuthDialog = ({ isOpen, onClose, onAuthSuccess }) => {
           });
           console.log(response.token);
           if (response.token) {
-            sessionStorage.setItem("token", response.token);
-            sessionStorage.setItem("user", JSON.stringify(response.user));
-            if (rememberMe) {
-              localStorage.setItem("token", response.token);
-              localStorage.setItem("user", JSON.stringify(response.user));
-            }
+            AuthService.setAuthData(response.token, response.user, rememberMe);
             navigate("/");
             onAuthSuccess?.({ email: formData.email });
             onClose?.();
@@ -228,12 +223,7 @@ const AuthDialog = ({ isOpen, onClose, onAuthSuccess }) => {
             senha: formData.senha,
           });
           if (response && response.token) {
-            sessionStorage.setItem("token", response.token);
-            sessionStorage.setItem("user", JSON.stringify(response.user));
-            if (rememberMe) {
-              localStorage.setItem("token", response.token);
-              localStorage.setItem("user", JSON.stringify(response.user));
-            }
+            AuthService.setAuthData(response.token, response.user, rememberMe);
             navigate("/");
             onAuthSuccess?.({ email: formData.email });
             onClose?.();
@@ -255,6 +245,7 @@ const AuthDialog = ({ isOpen, onClose, onAuthSuccess }) => {
             cidade: formData.cidade,
             estado: formData.estado,
             cep: formData.cep,
+            pais: formData.pais,
           });
           await AuthService.enviarCodigoEmail({
             destino: formData.email,
@@ -351,13 +342,8 @@ const AuthDialog = ({ isOpen, onClose, onAuthSuccess }) => {
           senha: formData.senha,
         });
         if (loginResp.token) {
-          sessionStorage.setItem("token", loginResp.token);
-          sessionStorage.setItem("user", JSON.stringify(loginResp.user));
-          if (rememberMe) {
-            localStorage.setItem("token", loginResp.token);
-            localStorage.setItem("user", JSON.stringify(loginResp.user));
-          }
-          navigate("/");
+          AuthService.setAuthData(loginResp.token, loginResp.user, rememberMe);
+          navigate("/cliente/perfil");
           onAuthSuccess?.({ email: formData.email });
           onClose?.();
         }
@@ -860,6 +846,22 @@ const AuthDialog = ({ isOpen, onClose, onAuthSuccess }) => {
                           onChange={handleInputChange}
                           className={`w-full pl-4 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200 text-black ${
                             invalidFields.includes("cep")
+                              ? "border-red-500"
+                              : ""
+                          }`}
+                          required
+                        />
+                      </div>
+                      <div>
+                        {/* pais */}
+                        <input
+                          type="text"
+                          name="pais"
+                          placeholder="Pais"
+                          value={formData.pais}
+                          onChange={handleInputChange}
+                          className={`w-full pl-4 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200 text-black ${
+                            invalidFields.includes("pais")
                               ? "border-red-500"
                               : ""
                           }`}

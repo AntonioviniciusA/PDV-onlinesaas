@@ -2,6 +2,7 @@ const { v4: uuidv4 } = require("uuid");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { pool } = require("../config/database.js");
+const { createClienteDatabase } = require("../config/cdatabase.js");
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -20,6 +21,7 @@ const registerCliente = async (req, res) => {
       cidade,
       estado,
       cep,
+      pais,
     } = req.body;
     if (
       !razao_social ||
@@ -32,7 +34,8 @@ const registerCliente = async (req, res) => {
       !endereco ||
       !cidade ||
       !estado ||
-      !cep
+      !cep ||
+      !pais
     ) {
       return res.status(400).json({
         success: false,
@@ -56,8 +59,8 @@ const registerCliente = async (req, res) => {
     const id = uuidv4();
     await pool.query(
       `INSERT INTO cliente 
-        (id, razao_social, cnpj, nome_representante, cpf, email, senha, telefone, endereco, cidade, estado, cep, ativo, email_verificado) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true, false)`,
+        (id, razao_social, cnpj, nome_representante, cpf, email, senha, telefone, endereco, cidade, estado, cep, pais, ativo, email_verificado ) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true, false)`,
       [
         id,
         razao_social || null,
@@ -71,9 +74,11 @@ const registerCliente = async (req, res) => {
         cidade,
         estado,
         cep,
+        pais,
       ]
     );
-
+    //criar banco de dados separado para o cliente
+    await createClienteDatabase(id);
     return res.status(201).json({
       success: true,
       message: "Cliente cadastrado com sucesso.",
@@ -205,6 +210,7 @@ const loginCliente = async (req, res) => {
         cidade: cliente.cidade,
         estado: cliente.estado,
         cep: cliente.cep,
+        pais: cliente.pais,
         ativo: cliente.ativo,
       },
     });
@@ -220,7 +226,8 @@ const loginCliente = async (req, res) => {
 const getProfile = async (req, res) => {
   try {
     // Recupera o ID do cliente a partir do token JWT
-    const clienteId = req.user && req.user.id ? req.user.id : null;
+    const clienteId = req.user.id;
+    console.log("clienteId", clienteId);
     if (!clienteId) {
       return res.status(401).json({
         success: false,
@@ -229,10 +236,9 @@ const getProfile = async (req, res) => {
     }
 
     // Busca os dados do cliente
-    const [clientes] = await pool.query(
-      "SELECT id, razao_social, cnpj, nome_representante, cpf, email, telefone, endereco, cidade, estado, cep, ativo, ultimo_login FROM cliente WHERE id = ?",
-      [clienteId]
-    );
+    const [clientes] = await pool.query("SELECT * FROM cliente WHERE id = ?", [
+      clienteId,
+    ]);
     if (!clientes || clientes.length === 0) {
       return res.status(404).json({
         success: false,
@@ -241,19 +247,10 @@ const getProfile = async (req, res) => {
     }
     const cliente = clientes[0];
 
-    // Busca informações da assinatura do cliente
-    const [assinaturas] = await pool.query(
-      "SELECT id, plano, status, data_inicio, data_fim, valor FROM assinatura WHERE cliente_id = ? ORDER BY data_inicio DESC LIMIT 1",
-      [clienteId]
-    );
-    const assinatura =
-      assinaturas && assinaturas.length > 0 ? assinaturas[0] : null;
-
     // Retorna o perfil completo
     return res.json({
       success: true,
       profile: cliente,
-      assinatura: assinatura,
     });
   } catch (err) {
     console.error("Erro ao buscar perfil do cliente:", err);
@@ -262,6 +259,35 @@ const getProfile = async (req, res) => {
       message: "Erro interno ao buscar perfil.",
     });
   }
+};
+const updateProfile = async (req, res) => {
+  const { id } = req.user;
+  const {
+    nome_representante,
+    email,
+    telefone,
+    endereco,
+    cidade,
+    estado,
+    cep,
+    pais,
+  } = req.body;
+  const [cliente] = await pool.query(
+    "UPDATE cliente SET nome_representante = ?, email = ?, telefone = ?, endereco = ?, cidade = ?, estado = ?, cep = ?, pais = ? WHERE id = ?",
+    [
+      nome_representante,
+      email,
+      telefone,
+      endereco,
+      cidade,
+      estado,
+      cep,
+      pais,
+      id,
+    ]
+  );
+  console.log("cliente", cliente);
+  return res.json({ success: true, message: "Perfil atualizado com sucesso." });
 };
 
 // Função para enviar código de verificação por e-mail ou WhatsApp
@@ -541,6 +567,7 @@ module.exports = {
   registerCliente,
   loginCliente,
   getProfile,
+  updateProfile,
   enviarCodigoVerificacao,
   verificarCodigo,
   verificarEmail,

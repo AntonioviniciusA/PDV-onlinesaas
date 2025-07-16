@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -20,19 +20,26 @@ export function ReceiptSelectionDialog({
 }) {
   const [selectedType, setSelectedType] = useState(defaultType);
 
-  const handleConfirm = () => {
-    onSelect(canChoose ? selectedType : defaultType);
-    onOpenChange(false);
-  };
-
-  // REMOVER este setTimeout que está causando o problema
-  // if (!canChoose) {
-  //   setTimeout(() => {
-  //     onSelect(defaultType)
-  //     onOpenChange(false)
-  //   }, 100)
-  //   return null
-  // }
+  // Atalhos de teclado: Alt+R (recibo), Alt+C (cupom)
+  useEffect(() => {
+    if (!open) return;
+    function handleKeyDown(e) {
+      if (e.altKey && (e.key === "r" || e.key === "R")) {
+        setSelectedType("receipt");
+        onSelect("receipt");
+        onOpenChange(false);
+        e.preventDefault();
+      }
+      if (e.altKey && (e.key === "c" || e.key === "C")) {
+        setSelectedType("fiscal");
+        onSelect("fiscal");
+        onOpenChange(false);
+        e.preventDefault();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onOpenChange, onSelect]);
 
   // Se não pode escolher, mostrar apenas uma confirmação
   if (!canChoose) {
@@ -49,7 +56,7 @@ export function ReceiptSelectionDialog({
                 ? "Cupom Fiscal"
                 : defaultType === "receipt"
                 ? "Recibo Simples"
-                : "Ambos"}
+                : "Recibo Simples"}
             </strong>
           </DialogDescription>
 
@@ -61,7 +68,7 @@ export function ReceiptSelectionDialog({
                   ? "Cupom Fiscal"
                   : defaultType === "receipt"
                   ? "Recibo Simples"
-                  : "Ambos"}
+                  : "Recibo Simples"}
               </strong>
             </p>
 
@@ -69,7 +76,6 @@ export function ReceiptSelectionDialog({
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleConfirm}>Confirmar</Button>
             </div>
           </div>
         </DialogContent>
@@ -101,12 +107,16 @@ export function ReceiptSelectionDialog({
           <div className="space-y-3">
             <Button
               variant={selectedType === "fiscal" ? "default" : "outline"}
-              onClick={() => setSelectedType("fiscal")}
+              onClick={() => {
+                setSelectedType("fiscal");
+                onSelect("fiscal");
+                onOpenChange(false);
+              }}
               className="w-full h-16 flex flex-col items-center gap-2"
             >
               <Receipt className="w-6 h-6" />
               <div className="text-center">
-                <div className="font-semibold">Cupom Fiscal</div>
+                <div className="font-semibold">Cupom Fiscal (Alt+C)</div>
                 <div className="text-xs opacity-75">
                   Documento oficial com validade fiscal
                 </div>
@@ -115,31 +125,18 @@ export function ReceiptSelectionDialog({
 
             <Button
               variant={selectedType === "receipt" ? "default" : "outline"}
-              onClick={() => setSelectedType("receipt")}
+              onClick={() => {
+                setSelectedType("receipt");
+                onSelect("receipt");
+                onOpenChange(false);
+              }}
               className="w-full h-16 flex flex-col items-center gap-2"
             >
               <FileText className="w-6 h-6" />
               <div className="text-center">
-                <div className="font-semibold">Recibo Simples</div>
+                <div className="font-semibold">Recibo Simples (Alt+R)</div>
                 <div className="text-xs opacity-75">
                   Comprovante interno sem validade fiscal
-                </div>
-              </div>
-            </Button>
-
-            <Button
-              variant={selectedType === "both" ? "default" : "outline"}
-              onClick={() => setSelectedType("both")}
-              className="w-full h-16 flex flex-col items-center gap-2"
-            >
-              <div className="flex gap-2">
-                <Receipt className="w-5 h-5" />
-                <FileText className="w-5 h-5" />
-              </div>
-              <div className="text-center">
-                <div className="font-semibold">Ambos</div>
-                <div className="text-xs opacity-75">
-                  Cupom fiscal + recibo simples
                 </div>
               </div>
             </Button>
@@ -149,7 +146,6 @@ export function ReceiptSelectionDialog({
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleConfirm}>Confirmar</Button>
           </div>
         </div>
       </DialogContent>

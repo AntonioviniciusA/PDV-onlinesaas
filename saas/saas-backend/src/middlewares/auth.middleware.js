@@ -5,7 +5,7 @@ const auth = async (req, res, next) => {
   let connection;
   try {
     const token = req.header("Authorization")?.replace("Bearer ", "");
-
+    console.log("verificando token");
     if (!token) {
       return res.status(401).json({
         success: false,
@@ -14,13 +14,14 @@ const auth = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("decodificando token");
     connection = await pool.getConnection();
     const [rows] = await connection.query(
       "SELECT * FROM cliente WHERE id = ?",
-      [decoded.userId]
+      [decoded.id]
     );
     const user = rows[0];
-
+    console.log("user", user);
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -45,10 +46,11 @@ const auth = async (req, res, next) => {
       const diff = (now - start) / (1000 * 60 * 60 * 24);
       return diff <= trialDays;
     };
-
+    console.log("token valido");
     req.user = user;
     next();
   } catch (error) {
+    console.log("erro no middleware de autenticação");
     if (error.name === "JsonWebTokenError") {
       return res.status(401).json({
         success: false,

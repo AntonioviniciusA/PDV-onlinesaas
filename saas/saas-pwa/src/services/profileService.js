@@ -25,4 +25,13 @@ export const profileService = {
       throw new Error("Não foi possível carregar o perfil do parceiro.");
     }
   },
+  updateClienteProfile: async (data) => {
+    try {
+      const response = await apiAuth.put("/cliente/profile", data);
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao atualizar perfil do cliente:", error);
+      throw error;
+    }
+  },
 };

@@ -9,12 +9,9 @@ export default function ProtectedRoute({ children }) {
 
   useEffect(() => {
     const checkAuth = async () => {
-      // Tenta obter o token (ajuste conforme seu AuthService)
-      const token = await (AuthService.getToken?.() ||
-        localStorage.getItem("token"));
+      const token = await AuthService.getToken();
       setHasToken(!!token);
       if (token) {
-        // Se tem token, verifica se está autenticado
         const valid = await AuthService.isAuthenticated();
         setIsAuth(!!valid);
       }
@@ -23,9 +20,8 @@ export default function ProtectedRoute({ children }) {
     checkAuth();
   }, []);
 
-  if (loading) return null; // ou um spinner
+  if (loading) return null;
 
-  // Se tem token e não está autenticado, redireciona para login
   if (hasToken && !isAuth) {
     return <Navigate to="/login" replace />;
   }

@@ -2,23 +2,21 @@ import React, { useEffect, useState } from "react";
 import { Bell, Search, User } from "lucide-react";
 import { AuthService } from "../../services/authServices";
 
-import { useNavigate } from "react-router-dom";
-
 function Header({ title, userType }) {
   const [user, setUser] = useState();
 
   useEffect(() => {
     const fetchUser = async () => {
       const isAuth = await AuthService.isAuthenticated();
+      console.log("isAuth", isAuth);
       if (isAuth) {
         const user = await AuthService.getUser();
+        console.log("user", user);
         setUser(user);
       }
     };
     fetchUser();
   }, []);
-
-  const navigate = useNavigate();
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
@@ -52,22 +50,15 @@ function Header({ title, userType }) {
             {user ? (
               <div className="flex items-center gap-2 cursor-pointer">
                 <span className="font-medium">
-                  {user.nome_representante || user.razao_social || user.email}
+                  {user.nome_representante || user.razao_social}
                 </span>
                 <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-bold uppercase">
-                  {
-                    (user.nome_representante ||
-                      user.razao_social ||
-                      user.email)[0]
-                  }
+                  {user.nome_representante || user.razao_social}
                 </div>
               </div>
             ) : (
               <>
-                <button
-                  className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-                  onClick={() => navigate("/login")}
-                >
+                <button className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
                   Entrar
                 </button>
               </>

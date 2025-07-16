@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   CreditCard,
@@ -13,27 +13,35 @@ import {
   UserCheck,
   ExternalLink,
 } from "lucide-react";
-import { isAuthenticated } from "../../utils/auth";
-import { PaymentService } from "../../services/PaymentServices.js";
-import { useEffect } from "react";
+
+import { AssinaturaService } from "../../services/assinaturaService.js";
+import { AuthService } from "../../services/authServices";
+
 import { QRCodeSVG } from "qrcode.react";
 
 const PaymentRegister = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const selectedPlan = location.state?.plan;
+  console.log("selectedPlan", selectedPlan);
 
+  // Redireciona para pricing se não houver plano selecionado
   useEffect(() => {
-    if (!isAuthenticated()) {
-      navigate("/login");
+    if (!selectedPlan) {
+      navigate("/#pricing");
     }
-  }, [navigate]);
+  }, [selectedPlan, navigate]);
 
-  const selectedPlan = location.state?.plan || {
-    name: "Básico",
-    price: 90,
-    yearlyPrice: 60,
-    isYearly: false,
-  };
+  // Verifica autenticação ao montar
+  useEffect(() => {
+    const checkAuth = async () => {
+      const isAuth = await AuthService.isAuthenticated();
+      if (!isAuth) {
+        navigate("/login", { state: { from: "/payment" } });
+      }
+    };
+    checkAuth();
+  }, [navigate]);
 
   const [formData, setFormData] = useState({
     // Dados da empresa e representante
@@ -125,55 +133,37 @@ const PaymentRegister = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsProcessing(true);
-    if (paymentMethod === "pix") {
-      // Chamar API para criar assinatura Pix
-      try {
-        const user = JSON.parse(localStorage.getItem("user"));
-        // Ajuste os dados conforme esperado pelo seu backend
-        const body = {
-          userId: user?.id,
-          planId: selectedPlan.id,
-          paymentData: { billingType: "PIX" },
-        };
-        // Corrigido: PaymentService não estava definido. Importe ou defina antes de usar.
-        // Supondo que PaymentService seja um serviço de API, importe no topo do arquivo:
-        // import PaymentService from '../../services/PaymentService';
-        const response = await PaymentService.pagar(body);
-        const data = await response.json();
+    try {
+      const body = {
+        planId: selectedPlan.id,
+        paymentData: { billingType: paymentMethod.toUpperCase() },
+      };
+      const response = await AssinaturaService.assinar(body);
+      if (paymentMethod === "pix") {
         if (
-          data.success &&
-          data.data &&
-          data.data.assas &&
-          data.data.assas.pixQrCode
+          response.success &&
+          response.data &&
+          response.data.assas &&
+          response.data.assas.pixQrCode
         ) {
           setPixData({
-            qrCode: data.data.assas.pixQrCode.payload,
-            copiaCola: data.data.assas.pixQrCode.payload,
+            qrCode: response.data.assas.pixQrCode.payload,
+            copiaCola: response.data.assas.pixQrCode.payload,
           });
         } else {
           alert("Erro ao gerar QR Code Pix. Tente novamente.");
         }
-      } catch (err) {
-        alert("Erro ao processar pagamento Pix.");
+      } else {
+        alert("Pagamento processado com sucesso!");
+        navigate("/");
       }
-      setIsProcessing(false);
-      return;
+    } catch (err) {
+      alert("Erro ao processar pagamento.");
     }
-    // Simula processamento cartão/boleto
-    setTimeout(() => {
-      setIsProcessing(false);
-      if (paymentMethod === "card") {
-        alert("Pagamento com cartão processado com sucesso!");
-      } else if (paymentMethod === "boleto") {
-        alert("Boleto gerado e enviado para o e-mail!");
-      }
-      navigate("/");
-    }, 2000);
+    setIsProcessing(false);
   };
 
-  const subtotal = selectedPlan.isYearly
-    ? selectedPlan.yearlyPrice
-    : selectedPlan.price;
+  const subtotal = Number(selectedPlan?.preco) || 0;
   const tax = Math.round(subtotal * 0.1 * 100) / 100;
   const total = subtotal + tax;
 
@@ -334,35 +324,25 @@ const PaymentRegister = () => {
   );
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8 pb-6 border-b border-gray-200">
-          <button
-            onClick={() => navigate("/")}
-            className="flex items-center text-gray-600 hover:text-black transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5 mr-2" />
-            Voltar
-          </button>
-          <div className="flex items-center space-x-2">
-            <Lock className="w-5 h-5 text-gray-600" />
-            <span className="text-sm text-gray-600">Pagamento Seguro</span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Payment Form */}
-          <div className="space-y-8">
-            <div>
-              <h1 className="text-3xl font-bold text-black mb-2">
-                Finalizar Assinatura
-              </h1>
-              <p className="text-gray-600">
-                Complete os dados para confirmar sua assinatura
-              </p>
+    <>
+      <div className="min-h-screen bg-white">
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8 pb-6 border-b border-gray-200">
+            <button
+              onClick={() => navigate("/")}
+              className="flex items-center text-gray-600 hover:text-black transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5 mr-2" />
+              Voltar
+            </button>
+            <div className="flex items-center space-x-2">
+              <Lock className="w-5 h-5 text-gray-600" />
+              <span className="text-sm text-gray-600">Pagamento Seguro</span>
             </div>
-
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            {/* Payment Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Company Information */}
               <div className="space-y-4">
@@ -716,83 +696,79 @@ const PaymentRegister = () => {
                 </div>
               )}
             </form>
-          </div>
 
-          {/* Order Summary */}
-          <div className="lg:sticky lg:top-8 h-fit">
-            <div className="bg-gray-50 rounded-lg p-6 space-y-6">
-              <h2 className="text-xl font-semibold text-black">
-                Resumo da Assinatura
-              </h2>
+            {/* Order Summary */}
+            <div className="lg:sticky lg:top-8 h-fit">
+              <div className="bg-gray-50 rounded-lg p-6 space-y-6">
+                <h2 className="text-xl font-semibold text-black">
+                  Resumo da Assinatura
+                </h2>
 
-              <div className="space-y-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-medium text-black">
-                      {selectedPlan.name}
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      {selectedPlan.isYearly
-                        ? "Cobrança anual"
-                        : "Cobrança mensal"}
-                    </p>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-medium text-black">
+                        {selectedPlan?.name}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {selectedPlan?.isYearly
+                          ? "Cobrança anual"
+                          : "Cobrança mensal"}
+                      </p>
+                    </div>
+                    <span className="font-semibold text-black">
+                      R$ {selectedPlan?.preco} / mês
+                    </span>
                   </div>
-                  <span className="font-semibold text-black">
-                    R${" "}
-                    {selectedPlan.isYearly
-                      ? selectedPlan.yearlyPrice
-                      : selectedPlan.price}
-                    /mês
-                  </span>
+
+                  {selectedPlan?.isYearly && (
+                    <div className="bg-white border border-gray-200 rounded-lg p-3">
+                      <div className="flex items-center space-x-2">
+                        <Check className="w-4 h-4 text-black" />
+                        <span className="text-sm font-medium text-black">
+                          Economia anual: 20%
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {selectedPlan.isYearly && (
-                  <div className="bg-white border border-gray-200 rounded-lg p-3">
-                    <div className="flex items-center space-x-2">
-                      <Check className="w-4 h-4 text-black" />
-                      <span className="text-sm font-medium text-black">
-                        Economia anual: 20%
-                      </span>
+                <div className="border-t border-gray-200 pt-4 space-y-3">
+                  <div className="flex justify-between text-gray-600">
+                    <span>Subtotal</span>
+                    <span>R$ {selectedPlan?.preco}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-600">
+                    <span>Impostos</span>
+                    <span>R$ {tax}</span>
+                  </div>
+                  <div className="flex justify-between text-lg font-semibold text-black border-t border-gray-200 pt-3">
+                    <span>Total</span>
+                    <span>R$ {total}</span>
+                  </div>
+                </div>
+
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-start space-x-3">
+                    <Lock className="w-5 h-5 text-gray-600 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-black">
+                        Assinatura Digital Segura
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Documento com validade jurídica e criptografia SSL 256
+                        bits
+                      </p>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
 
-              <div className="border-t border-gray-200 pt-4 space-y-3">
-                <div className="flex justify-between text-gray-600">
-                  <span>Subtotal</span>
-                  <span>R$ {subtotal}</span>
+                <div className="text-xs text-gray-500 space-y-2">
+                  <p>• Cancele a qualquer momento</p>
+                  <p>• Suporte jurídico 24/7</p>
+                  <p>• Garantia de 30 dias</p>
+                  <p>• Documento assinado digitalmente</p>
                 </div>
-                <div className="flex justify-between text-gray-600">
-                  <span>Impostos</span>
-                  <span>R$ {tax}</span>
-                </div>
-                <div className="flex justify-between text-lg font-semibold text-black border-t border-gray-200 pt-3">
-                  <span>Total</span>
-                  <span>R$ {total}</span>
-                </div>
-              </div>
-
-              <div className="bg-white border border-gray-200 rounded-lg p-4">
-                <div className="flex items-start space-x-3">
-                  <Lock className="w-5 h-5 text-gray-600 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-black">
-                      Assinatura Digital Segura
-                    </p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      Documento com validade jurídica e criptografia SSL 256
-                      bits
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="text-xs text-gray-500 space-y-2">
-                <p>• Cancele a qualquer momento</p>
-                <p>• Suporte jurídico 24/7</p>
-                <p>• Garantia de 30 dias</p>
-                <p>• Documento assinado digitalmente</p>
               </div>
             </div>
           </div>
@@ -802,7 +778,7 @@ const PaymentRegister = () => {
       {/* Modals */}
       {showPrivacyModal && <PrivacyModal />}
       {showTermsModal && <TermsModal />}
-    </div>
+    </>
   );
 };
 

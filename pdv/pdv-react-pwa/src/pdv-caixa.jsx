@@ -54,7 +54,7 @@ import beepSound from "./assets/sounds/beep.mp3";
 
 import { initialProducts } from "./data/initialProducts";
 import { localUsers } from "./data/localUsers";
-import { imprimirCupomOffline } from "./utils/cupom.utils";
+import { cupomService } from "./services/cupomServices.js";
 
 export default function PDVCaixa() {
   const { salvarCupom, requestNotificationPermission } = useOfflineSync();
@@ -442,13 +442,11 @@ export default function PDVCaixa() {
   };
 
   const completeSale = async (receivedAmount, changeAmount, receiptType) => {
-    // ADICIONAR verificação para evitar venda com carrinho vazio
     if (cart.length === 0) {
       alert("Não é possível finalizar venda com carrinho vazio!");
       return;
     }
 
-    // ADICIONAR verificação para evitar venda com total zero
     if (total <= 0) {
       alert("Não é possível finalizar venda com valor zero!");
       return;
@@ -465,13 +463,6 @@ export default function PDVCaixa() {
     }
 
     let message = `Venda finalizada!\nTotal: R$ ${total.toFixed(2)}`;
-
-    // Adicionar informações do comprovante
-    if (receiptType === "fiscal") {
-      message += `\n📄 Cupom Fiscal emitido`;
-    } else if (receiptType === "receipt") {
-      message += `\n📋 Recibo simples emitido`;
-    }
 
     if (mixedPayments.length > 0) {
       message += `\nPagamento Misto:`;
@@ -521,122 +512,11 @@ export default function PDVCaixa() {
       pixPaymentConfirmed: pixPaymentConfirmed,
     };
 
-    // Tentar salvar o cupom (online ou offline)
     try {
-      const result = await salvarCupom(cupomData);
-      // Chamar impressão do cupom via backend
-      await imprimirCupomOffline(cupomData);
-      // Função para imprimir o recibo na impressora
-      const imprimirRecibo = (cupom, { preview = false } = {}) => {
-        // Montar o HTML do recibo
-        let reciboHtml = `
-          <div style="font-family: monospace; width: 300px;">
-            <h2 style="text-align:center;">RECIBO</h2>
-            <div>Data: ${new Date(cupom.timestamp).toLocaleString(
-              "pt-BR"
-            )}</div>
-            <div>Operador: ${cupom.user?.name || "N/A"}</div>
-            <hr/>
-            <div>
-              <strong>Itens:</strong>
-              <ul style="padding-left: 0; list-style: none;">
-                ${cupom.items
-                  .map(
-                    (item) =>
-                      `<li>${item.name} x${
-                        item.quantity
-                      } - R$ ${item.totalPrice.toFixed(2)}</li>`
-                  )
-                  .join("")}
-              </ul>
-            </div>
-            <hr/>
-            <div>
-              Subtotal: R$ ${(
-                cupom.total +
-                (cupom.discountType === "percentage"
-                  ? (cupom.total * cupom.discount) / (100 - cupom.discount)
-                  : cupom.discountValue)
-              ).toFixed(2)}<br/>
-              Desconto: ${
-                cupom.discountType === "percentage"
-                  ? `${cupom.discount}%`
-                  : `R$ ${cupom.discountValue.toFixed(2)}`
-              }<br/>
-              <strong>Total: R$ ${cupom.total.toFixed(2)}</strong>
-            </div>
-            <hr/>
-            <div>
-              Forma de Pagamento: ${
-                cupom.mixedPayments && cupom.mixedPayments.length > 0
-                  ? cupom.mixedPayments
-                      .map(
-                        (p) =>
-                          `${p.name}: R$ ${p.amount.toFixed(2)}${
-                            p.type === "pix" && cupom.pixPaymentConfirmed
-                              ? " (PIX Confirmado)"
-                              : ""
-                          }`
-                      )
-                      .join("<br/>")
-                  : cupom.paymentMethod === "cartao" && cupom.selectedCardType
-                  ? `Cartão ${cupom.selectedCardType}`
-                  : cupom.paymentMethod
-              }
-            </div>
-            ${
-              cupom.paymentMethod === "dinheiro"
-                ? `<div>Recebido: R$ ${
-                    cupom.receivedAmount?.toFixed(2) || "0.00"
-                  }<br/>Troco: R$ ${
-                    cupom.changeAmount?.toFixed(2) || "0.00"
-                  }</div>`
-                : ""
-            }
-            <hr/>
-            <div style="text-align:center;">Obrigado pela preferência!</div>
-          </div>
-        `;
-
-        // Criar janela para impressão
-        const printWindow = window.open(
-          "",
-          preview ? "_blank" : "_self",
-          "width=350,height=600"
-        );
-        if (!printWindow) {
-          alert("Não foi possível abrir a janela de impressão.");
-          return;
-        }
-        printWindow.document.write(`
-          <html>
-            <head>
-              <title>Recibo</title>
-              <style>
-                body { margin: 0; padding: 10px; }
-                @media print {
-                  body { margin: 0; }
-                }
-              </style>
-            </head>
-            <body>${reciboHtml}</body>
-          </html>
-        `);
-        printWindow.document.close();
-
-        // Imprimir automaticamente se não for preview
-        if (!preview) {
-          printWindow.focus();
-          printWindow.print();
-          printWindow.close();
-        }
-      };
-
-      // Chamar impressão do recibo após salvar o cupom
-      imprimirRecibo(cupomData, { preview: false });
-      if (result.offline) {
-        message +=
-          "\n\n⚠️ Cupom salvo offline - será sincronizado quando a conexão voltar.";
+      if (receiptType === "fiscal") {
+        await cupomService.printThermalCupom(cupomData);
+      } else {
+        await cupomService.printThermalRecibo(cupomData);
       }
     } catch (error) {
       console.error("Erro ao salvar cupom:", error);

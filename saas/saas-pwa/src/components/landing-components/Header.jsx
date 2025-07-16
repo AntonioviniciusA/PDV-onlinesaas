@@ -51,9 +51,9 @@ export default function Header() {
 
   const handleProfileClick = () => {
     if (user && (user.nome_representante || user.razao_social)) {
-      navigate("/cliente/perfil");
-    } else if (user && user.nome) {
-      navigate("/parceiro/perfil");
+      navigate("/cliente/perfil", { state: { user } });
+    } else if (user && user.razao_social) {
+      navigate("/parceiro/perfil", { state: { user } });
     }
   };
 

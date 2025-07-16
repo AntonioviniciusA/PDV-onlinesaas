@@ -4,10 +4,12 @@ const {
   registerCliente,
   loginCliente,
   getProfile,
+  updateProfile,
   enviarCodigoVerificacao,
   verificarCodigo,
   verificarEmail,
 } = require("../controllers/cliente.controller.js");
+const authMiddleware = require("../middlewares/auth.middleware.js");
 // Middleware de validação para registro e login de cliente
 
 const { body, validationResult } = require("express-validator");
@@ -71,7 +73,8 @@ const validarLoginCliente = [
 
 router.post("/register", validarRegistroCliente, registerCliente);
 router.post("/login", validarLoginCliente, loginCliente);
-router.get("/profile", getProfile);
+router.get("/profile", authMiddleware, getProfile);
+router.put("/profile", authMiddleware, updateProfile);
 router.post("/enviar-codigo", enviarCodigoVerificacao);
 router.post("/verificar-email", verificarEmail);
 router.post("/verificar-codigo", verificarCodigo);

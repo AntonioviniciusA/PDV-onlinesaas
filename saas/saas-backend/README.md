@@ -92,14 +92,14 @@ src/
 ├── controllers/
 │   ├── authController.js    # Controle de autenticação
 │   ├── userController.js    # Controle de usuários
-│   └── subscriptionController.js # Controle de assinaturas
+│   └── assinaturasController.js # Controle de assinaturas
 ├── models/
 │   ├── User.js          # Modelo de usuário
-│   └── Subscription.js  # Modelo de assinatura
+│   └── assinaturas.js  # Modelo de assinatura
 ├── routes/
 │   ├── auth.js          # Rotas de autenticação
 │   ├── users.js         # Rotas de usuários
-│   └── subscriptions.js # Rotas de assinaturas
+│   └── assinaturass.js # Rotas de assinaturas
 ├── middlewares/
 │   ├── auth.js          # Middleware de autenticação
 │   └── trialCheck.js    # Verificação de avaliação gratuita
@@ -123,9 +123,9 @@ src/
 
 ### Assinaturas
 
-- `POST /api/subscriptions/create` - Criar assinatura
-- `GET /api/subscriptions/status` - Status da assinatura
-- `POST /api/subscriptions/cancel` - Cancelar assinatura
+- `POST /api/assinaturass/create` - Criar assinatura
+- `GET /api/assinaturass/status` - Status da assinatura
+- `POST /api/assinaturass/cancel` - Cancelar assinatura
 
 ## 🔐 Fluxo de Autenticação
 

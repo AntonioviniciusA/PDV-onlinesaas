@@ -84,8 +84,9 @@ const VerificarEmail = () => {
       });
 
       const data = response.data; // axios retorna o JSON em .data
-
-      if (response.ok && data.sucesso) {
+      console.log(data);
+      if (data.sucesso === true) {
+        console.log(data.mensagem);
         alert("E-mail verificado com sucesso! Você pode fazer login agora.");
         navigate("/");
       } else {

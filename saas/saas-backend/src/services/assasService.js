@@ -51,24 +51,16 @@ class AssasService {
   }
 
   // Criar assinatura na ASSAS
-  async createSubscription(customerId, planData) {
+  async createassinaturas(customerId, planData) {
+    const assinaturasData = {
+      ...planData,
+      customer: customerId,
+      description: planData.description,
+    };
+    console.log("assinaturasData", assinaturasData);
     try {
-      const subscriptionData = {
-        customer: customerId,
-        billingType: planData.billingType || "CREDIT_CARD", // CREDIT_CARD, BOLETO, PIX, etc.
-        value: planData.value,
-        nextDueDate: planData.nextDueDate,
-        cycle: planData.cycle || "MONTHLY", // MONTHLY, YEARLY, etc.
-        description: planData.description || "Assinatura SaaS",
-        endDate: planData.endDate,
-        maxPayments: planData.maxPayments,
-        fine: planData.fine || { value: 2.0 },
-        interest: planData.interest || { value: 1.0 },
-        discount: planData.discount || { value: 0, dueDateLimitDays: 0 },
-        split: planData.split || [],
-      };
-
-      const response = await this.api.post("/subscriptions", subscriptionData);
+      // Trocar endpoint para /subscriptions
+      const response = await this.api.post("/subscriptions", assinaturasData);
       return response.data;
     } catch (error) {
       console.error(
@@ -80,9 +72,10 @@ class AssasService {
   }
 
   // Obter assinatura por ID
-  async getSubscription(subscriptionId) {
+  async getassinaturas(assinaturasId) {
     try {
-      const response = await this.api.get(`/subscriptions/${subscriptionId}`);
+      // Trocar endpoint para /subscriptions
+      const response = await this.api.get(`/subscriptions/${assinaturasId}`);
       return response.data;
     } catch (error) {
       console.error(
@@ -94,11 +87,9 @@ class AssasService {
   }
 
   // Cancelar assinatura
-  async cancelSubscription(subscriptionId) {
+  async cancelassinaturas(assinaturasId) {
     try {
-      const response = await this.api.delete(
-        `/subscriptions/${subscriptionId}`
-      );
+      const response = await this.api.delete(`/subscriptions/${assinaturasId}`);
       return response.data;
     } catch (error) {
       console.error(
@@ -110,10 +101,10 @@ class AssasService {
   }
 
   // Obter pagamentos de uma assinatura
-  async getSubscriptionPayments(subscriptionId) {
+  async getassinaturasPayments(assinaturasId) {
     try {
       const response = await this.api.get(
-        `/subscriptions/${subscriptionId}/payments`
+        `/assinaturas/${assinaturasId}/payments`
       );
       return response.data;
     } catch (error) {
@@ -156,14 +147,14 @@ class AssasService {
   // Processar webhook da ASSAS
   processWebhook(webhookData) {
     try {
-      const { event, payment, subscription } = webhookData;
+      const { event, payment, assinaturas } = webhookData;
 
       switch (event) {
         case "PAYMENT_RECEIVED":
           return {
             type: "PAYMENT_RECEIVED",
             payment,
-            subscription,
+            assinaturas,
             message: "Pagamento recebido com sucesso",
           };
 
@@ -171,7 +162,7 @@ class AssasService {
           return {
             type: "PAYMENT_CONFIRMED",
             payment,
-            subscription,
+            assinaturas,
             message: "Pagamento confirmado",
           };
 
@@ -179,21 +170,21 @@ class AssasService {
           return {
             type: "PAYMENT_OVERDUE",
             payment,
-            subscription,
+            assinaturas,
             message: "Pagamento em atraso",
           };
 
-        case "SUBSCRIPTION_CREATED":
+        case "assinaturas_CREATED":
           return {
-            type: "SUBSCRIPTION_CREATED",
-            subscription,
+            type: "assinaturas_CREATED",
+            assinaturas,
             message: "Assinatura criada",
           };
 
-        case "SUBSCRIPTION_CANCELLED":
+        case "assinaturas_CANCELLED":
           return {
-            type: "SUBSCRIPTION_CANCELLED",
-            subscription,
+            type: "assinaturas_CANCELLED",
+            assinaturas,
             message: "Assinatura cancelada",
           };
 
@@ -207,6 +198,42 @@ class AssasService {
     } catch (error) {
       console.error("Erro ao processar webhook da ASSAS:", error);
       throw new Error("Erro ao processar webhook");
+    }
+  }
+
+  // Listar cobranças de uma assinatura
+  async getAssinaturaPayments(assinaturaId) {
+    try {
+      const response = await this.api.get(
+        `/subscriptions/${assinaturaId}/payments`
+      );
+      return response.data;
+    } catch (error) {
+      console.error(
+        "Erro ao listar cobranças da assinatura na ASSAS:",
+        error.response?.data || error.message
+      );
+      throw new Error("Erro ao listar cobranças da assinatura na ASSAS");
+    }
+  }
+
+  // Atualizar cartão de crédito da assinatura sem cobrança
+  async updateCreditCard(assinaturaId, creditCardData) {
+    try {
+      // creditCardData deve conter os dados do cartão conforme docs da Asaas
+      const response = await this.api.put(
+        `/subscriptions/${assinaturaId}/creditCard`,
+        creditCardData
+      );
+      return response.data;
+    } catch (error) {
+      console.error(
+        "Erro ao atualizar cartão de crédito da assinatura na ASSAS:",
+        error.response?.data || error.message
+      );
+      throw new Error(
+        "Erro ao atualizar cartão de crédito da assinatura na ASSAS"
+      );
     }
   }
 }

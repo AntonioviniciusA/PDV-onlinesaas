@@ -1,5 +1,5 @@
-DROP DATABASE pdvsaas;
-CREATE DATABASE pdvsaas;
+-- DROP DATABASE pdvsaas;
+CREATE DATABASE IF NOT EXISTS pdvsaas;
 USE pdvsaas;
 
 CREATE TABLE IF NOT EXISTS `parceiro_saas`(
@@ -30,12 +30,14 @@ CREATE TABLE IF NOT EXISTS `cliente`(
     `cidade` VARCHAR(100) NOT NULL,
     `estado` VARCHAR(100) NOT NULL,
     `cep` VARCHAR(10) NOT NULL,
+    `pais` VARCHAR(100) NOT NULL,
     `assas_id_cliente` VARCHAR(255) UNIQUE NULL,
     `ultimo_login` DATETIME NULL,
     `ativo` BOOLEAN DEFAULT true,
     `dupla_autenticacao` BOOLEAN DEFAULT false,
     `parceiro_saas_id` VARCHAR(36) NULL,
     `email_verificado` BOOLEAN DEFAULT false,
+    `id_configuracao` VARCHAR(36) NULL,
     PRIMARY KEY(`id`),
     FOREIGN KEY(`parceiro_saas_id`) REFERENCES `parceiro_saas`(`id`)
 );
@@ -79,6 +81,7 @@ CREATE TABLE IF NOT EXISTS `assinaturas`(
     `data_inicio` DATETIME NOT NULL,
     `data_fim` DATETIME NOT NULL,
     `data_cobranca` DATETIME NOT NULL,
+    `valor` DECIMAL(10, 2) NOT NULL,
     `status` ENUM('active', 'inactive', 'cancelled') DEFAULT 'active',
     PRIMARY KEY(`id`),
     FOREIGN KEY (`id_cliente`) REFERENCES `cliente`(`id`),
@@ -91,5 +94,28 @@ CREATE TABLE IF NOT EXISTS `codigos_verificacao` (
   `codigo` VARCHAR(6) NOT NULL,
   `expiracao` DATETIME NOT NULL,
    FOREIGN KEY (`id_cliente`) REFERENCES `cliente`(`id`)
+);
+
+CREATE TABLE IF NOT EXISTS `configuracao`(
+    `id` VARCHAR(36) NOT NULL,
+    `id_cliente` VARCHAR(36) NOT NULL,
+    `id_assinatura` VARCHAR(36) NOT NULL,
+    `id_plano` int NOT NULL,
+    `id_assinatura` VARCHAR(36) NOT NULL,
+    `seguranca_2fa` BOOLEAN DEFAULT false,
+    `dispositivos_2fa` BOOLEAN DEFAULT false,
+    `notificacoes_email` BOOLEAN DEFAULT false,
+    `notificacoes_sms` BOOLEAN DEFAULT false,
+    `notificacoes_push` BOOLEAN DEFAULT false,
+    `notificacoes_whatsapp` BOOLEAN DEFAULT false,
+    `idioma` VARCHAR(10) DEFAULT 'pt-BR',
+    `fuso_horario` VARCHAR(10) DEFAULT 'America/Sao_Paulo',
+    `cor_principal` VARCHAR(10) DEFAULT '#000000',
+    `cor_secundaria` VARCHAR(10) DEFAULT '#000000',
+    `cor_terciaria` VARCHAR(10) DEFAULT '#000000',
+    PRIMARY KEY(`id`),
+    FOREIGN KEY (`id_cliente`) REFERENCES `cliente`(`id`),
+    FOREIGN KEY (`id_plano`) REFERENCES `plano`(`id`),
+    FOREIGN KEY (`id_assinatura`) REFERENCES `assinaturas`(`id`)
 );
 

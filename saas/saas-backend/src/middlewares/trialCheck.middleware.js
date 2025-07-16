@@ -25,9 +25,9 @@ const checkAccess = async (req, res, next) => {
       "SELECT * FROM assinaturas WHERE id_usuario = ? AND status = 'active' AND data_fim > NOW() LIMIT 1",
       [req.user.id]
     );
-    const activeSubscription = rows[0];
+    const activeassinaturas = rows[0];
 
-    if (activeSubscription) {
+    if (activeassinaturas) {
       return next();
     }
 
@@ -39,7 +39,7 @@ const checkAccess = async (req, res, next) => {
       trialExpired: !(
         typeof req.user.isTrialActive === "function" && req.user.isTrialActive()
       ),
-      requiresSubscription: true,
+      requiresassinaturas: true,
     });
   } catch (error) {
     console.error("Erro ao verificar acesso:", error);
@@ -77,9 +77,9 @@ const checkTrialExpired = async (req, res, next) => {
       "SELECT * FROM assinaturas WHERE id_usuario = ? AND status = 'active' AND data_fim > NOW() LIMIT 1",
       [req.user.id]
     );
-    const activeSubscription = rows[0];
+    const activeassinaturas = rows[0];
 
-    if (activeSubscription) {
+    if (activeassinaturas) {
       return next();
     }
 
@@ -89,7 +89,7 @@ const checkTrialExpired = async (req, res, next) => {
       message:
         "Sua avaliação gratuita expirou. É necessário assinar um plano para continuar.",
       trialExpired: true,
-      requiresSubscription: true,
+      requiresassinaturas: true,
     });
   } catch (error) {
     console.error("Erro ao verificar expiração da avaliação gratuita:", error);

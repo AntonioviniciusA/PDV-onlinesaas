@@ -13,7 +13,7 @@ import {
 const Sidebar = ({ activeTab, onTabChange, userType }) => {
   const clientMenuItems = [
     { id: "profile", label: "Perfil", icon: User },
-    { id: "subscription", label: "Assinatura", icon: CreditCard },
+    { id: "assinaturas", label: "Assinatura", icon: CreditCard },
     { id: "settings", label: "Configurações", icon: Settings },
     { id: "notifications", label: "Notificações", icon: Bell },
     { id: "help", label: "Ajuda", icon: HelpCircle },

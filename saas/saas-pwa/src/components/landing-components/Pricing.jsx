@@ -42,17 +42,6 @@ export default function Pricing() {
         plan: {
           ...plan,
           isYearly,
-          price: isYearly
-            ? plan.nome === "Básico"
-              ? 972
-              : plan.nome === "Profissional"
-              ? 1296
-              : 1910
-            : plan.nome === "Básico"
-            ? 90
-            : plan.nome === "Profissional"
-            ? 120
-            : 199,
         },
       },
     });
@@ -60,8 +49,10 @@ export default function Pricing() {
 
   // Função para transformar dados do backend para o formato do frontend
   const transformPlanData = (plan) => ({
+    id: plan.id,
     name: plan.nome,
     price: plan.preco_exibicao,
+    preco: plan.preco,
     description: plan.descricao,
     features: plan.funcionalidades,
     cta: plan.texto_cta,

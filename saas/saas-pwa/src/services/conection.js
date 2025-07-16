@@ -1,4 +1,5 @@
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 export const apiNoAuth = axios.create({
   baseURL: `${process.env.REACT_APP_API_URL}/saas`,
@@ -27,11 +28,12 @@ apiAuth.interceptors.request.use((config) => {
 apiAuth.interceptors.response.use(
   (response) => response,
   (error) => {
+    const navigate = useNavigate();
     if (error.response?.status === 401) {
       console.error("Token expirado ou inválido");
       localStorage.removeItem("token");
       sessionStorage.removeItem("token");
-      window.location.href = "/login";
+      navigate("/login");
     }
     return Promise.reject(error);
   }

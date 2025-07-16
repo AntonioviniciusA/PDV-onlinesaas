@@ -1,14 +1,14 @@
 import axios from "axios";
 
 export const apiNoAuth = axios.create({
-  baseURL: `${process.env.REACT_APP_API_URL}/saas`,
+  baseURL: `${process.env.REACT_APP_API_URL}/local`,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
 export const apiAuth = axios.create({
-  baseURL: `${process.env.REACT_APP_API_URL}/saas`,
+  baseURL: `${process.env.REACT_APP_API_URL}/local`,
   headers: {
     "Content-Type": "application/json",
   },
@@ -34,7 +34,7 @@ apiAuth.interceptors.response.use(
       window.location.href = "/login";
     }
     return Promise.reject(error);
-  },
+  }
 );
 
 // Interceptor para tratamento de erros (exemplo para conexões)
@@ -43,14 +43,14 @@ const handleError = (error) => {
     console.error("Erro de conexão: Servidor não está respondendo");
     return Promise.reject(
       new Error(
-        "Servidor não está respondendo. Verifique se o backend está rodando.",
-      ),
+        "Servidor não está respondendo. Verifique se o backend está rodando."
+      )
     );
   }
   if (error.code === "ECONNABORTED") {
     console.error("Timeout na requisição");
     return Promise.reject(
-      new Error("A requisição demorou muito para responder."),
+      new Error("A requisição demorou muito para responder.")
     );
   }
   const message = error.response?.data?.message || "Erro na requisição";

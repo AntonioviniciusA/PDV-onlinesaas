@@ -34,22 +34,3 @@ export async function removerCupomOffline(id) {
 export async function contarCuponsOffline() {
   return cuponsTemp.length;
 }
-
-export async function getCupomOffline(id) {
-  return cuponsTemp.find((c) => c.id === id);
-}
-
-export async function imprimirCupomOffline(cupom) {
-  try {
-    const response = await fetch("http://localhost:5000/cupom/imprimir", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(cupom),
-    });
-    if (!response.ok) throw new Error("Erro ao imprimir cupom");
-    return await response.json();
-  } catch (err) {
-    console.error("Erro ao chamar backend para imprimir cupom:", err);
-    throw err;
-  }
-}

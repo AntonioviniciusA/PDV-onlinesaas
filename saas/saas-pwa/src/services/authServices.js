@@ -160,16 +160,17 @@ export const AuthService = {
   },
   // Verificar se está autenticado
   isAuthenticated: async () => {
-    console.log("authStateCache", authStateCache);
+    console.log("[AuthService] authStateCache:", authStateCache);
     if (authStateCache.isAuthenticated !== null) {
       console.log(
-        "authStateCache.isAuthenticated2",
+        "[AuthService] authStateCache.isAuthenticated:",
         authStateCache.isAuthenticated
       );
       return authStateCache.isAuthenticated;
     }
-    console.log("iniciando verificacao de autenticacao");
+    console.log("[AuthService] Iniciando verificacao de autenticacao");
     const token = AuthService.getToken();
+    console.log("[AuthService] Token encontrado:", token);
     if (!token) {
       authStateCache.isAuthenticated = false;
       return false;
@@ -177,13 +178,16 @@ export const AuthService = {
 
     try {
       const response = await apiAuth.get("/verify-token");
+      console.log("[AuthService] Resposta /verify-token:", response);
       authStateCache = {
         isAuthenticated: true,
         user: response.data.user || AuthService.getUser(),
       };
       return true;
     } catch (error) {
+      console.error("[AuthService] Erro ao verificar token:", error);
       AuthService.clearAuth();
+      console.log("[AuthService] clearAuth chamado, token removido!");
       return false;
     }
   },

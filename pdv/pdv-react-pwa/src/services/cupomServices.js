@@ -1,35 +1,27 @@
 import { apiNoAuth, apiAuth } from "./conection";
 
-export const CupomService = {
-  // Imprimir cupom
-  imprimir: async (cupom) => {
+export const cupomService = {
+  printThermalCupom: async (cupom) => {
     try {
-      const response = await apiNoAuth.post("/cupom/imprimir", cupom);
+      const response = await apiNoAuth.post(
+        "/cupom/print-thermal-cupom",
+        cupom
+      );
       return response.data;
     } catch (error) {
       console.error("Erro ao imprimir cupom:", error);
       throw error;
     }
   },
-
-  // Buscar cupons (exemplo futuro)
-  buscarCupons: async () => {
+  printThermalRecibo: async (cupom) => {
     try {
-      const response = await apiAuth.get("/cupom");
+      const response = await apiNoAuth.post(
+        "/cupom/print-thermal-recibo",
+        cupom
+      );
       return response.data;
     } catch (error) {
-      console.error("Erro ao buscar cupons:", error);
-      throw error;
-    }
-  },
-
-  // Buscar cupom por ID (exemplo futuro)
-  buscarCupomPorId: async (id) => {
-    try {
-      const response = await apiAuth.get(`/cupom/${id}`);
-      return response.data;
-    } catch (error) {
-      console.error("Erro ao buscar cupom por ID:", error);
+      console.error("Erro ao imprimir recibo:", error);
       throw error;
     }
   },

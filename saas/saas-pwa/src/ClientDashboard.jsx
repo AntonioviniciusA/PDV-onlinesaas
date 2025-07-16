@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import Sidebar from "./components/profile/Sidebar";
 import Header from "./components/profile/Header";
 import ProfileTab from "./components/profile/client/ProfileTab";
-import SubscriptionTab from "./components/profile/client/SubscriptionTab";
+import AssinaturasTab from "./components/profile/client/AssinaturasTab";
 import SettingsTab from "./components/profile/client/SettingsTab";
 import { Bell, HelpCircle } from "lucide-react";
 
@@ -13,8 +13,8 @@ const ClientDashboard = () => {
     switch (activeTab) {
       case "profile":
         return <ProfileTab />;
-      case "subscription":
-        return <SubscriptionTab />;
+      case "assinaturas":
+        return <AssinaturasTab />;
       case "settings":
         return <SettingsTab />;
       case "notifications":
@@ -48,7 +48,7 @@ const ClientDashboard = () => {
     switch (activeTab) {
       case "profile":
         return "Perfil";
-      case "subscription":
+      case "assinaturas":
         return "Assinatura";
       case "settings":
         return "Configurações";
