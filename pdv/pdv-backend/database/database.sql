@@ -4,6 +4,7 @@ USE pdvlocal;
 
 CREATE TABLE IF NOT EXISTS users(
   `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `cliente_id` INT NOT NULL,
   `nome` VARCHAR(100) NOT NULL,
   `email` VARCHAR(100) NOT NULL UNIQUE,
   `senha` VARCHAR(255) NOT NULL,
@@ -14,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users(
 );
 CREATE TABLE IF NOT EXISTS produto (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `cliente_id` INT NOT NULL,
   `codigo` VARCHAR(50),
   `codigo_barras` VARCHAR(100),
   `descricao` VARCHAR(255),
@@ -45,6 +47,7 @@ CREATE TABLE IF NOT EXISTS produto (
 
 CREATE TABLE IF NOT EXISTS notas_fiscais (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `cliente_id` INT NOT NULL,
   `id_integracao` VARCHAR(50) UNIQUE NOT NULL,
   `natureza` VARCHAR(50),
   `cpfcnpj_emitente` VARCHAR(14),
@@ -58,6 +61,7 @@ CREATE TABLE IF NOT EXISTS notas_fiscais (
 
 CREATE TABLE IF NOT EXISTS notas_fiscais_itens (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `cliente_id` INT NOT NULL,
   `nota_id` INT NOT NULL,
   `codigo` VARCHAR(50),
   `descricao` TEXT,
@@ -70,6 +74,7 @@ CREATE TABLE IF NOT EXISTS notas_fiscais_itens (
 );
 CREATE TABLE notas_fiscais_tributos (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `cliente_id` INT NOT NULL,
   `item_id` INT NOT NULL,
   `icms_origem` VARCHAR(2),
   `icms_cst` VARCHAR(3),
@@ -90,6 +95,7 @@ CREATE TABLE notas_fiscais_tributos (
 );
 CREATE TABLE notas_fiscais_pagamentos (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `cliente_id` INT NOT NULL,
   `nota_id` INT NOT NULL,
   `a_vista` BOOLEAN,
   `meio` VARCHAR(5),
@@ -101,6 +107,7 @@ CREATE TABLE notas_fiscais_pagamentos (
 -- Tabela de recibos
 CREATE TABLE IF NOT EXISTS recibos (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `cliente_id` INT NOT NULL,
   `numero` VARCHAR(20) NOT NULL UNIQUE,
   `cliente` VARCHAR(100),
   `data` DATE NOT NULL,
@@ -120,6 +127,7 @@ CREATE TABLE IF NOT EXISTS recibos (
 -- Tabela de itens do recibo
 CREATE TABLE IF NOT EXISTS recibo_itens (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `cliente_id` INT NOT NULL,
   `recibo_id` INT NOT NULL,
   `descricao` VARCHAR(100) NOT NULL,
   `quantidade` INT NOT NULL,
@@ -130,6 +138,7 @@ CREATE TABLE IF NOT EXISTS recibo_itens (
 -- Tabela de vendas
 CREATE TABLE IF NOT EXISTS vendas (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `cliente_id` INT NOT NULL,
   `id_integracao` VARCHAR(50) UNIQUE NOT NULL,
   `data` DATE NOT NULL,
   `total` DECIMAL(10,2) NOT NULL,
@@ -143,4 +152,76 @@ CREATE TABLE IF NOT EXISTS vendas (
   `criado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `atualizado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`id_integracao`) REFERENCES `recibos`(`id_integracao`) ON DELETE CASCADE
+);
+
+-- Tabela de configurações de etiqueta
+CREATE TABLE IF NOT EXISTS etiqueta_configuracoes (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `cliente_id` INT DEFAULT 0,
+  `nome` VARCHAR(100) NOT NULL,
+  `largura` INT NOT NULL,
+  `altura` INT NOT NULL,
+  `show_comparison` BOOLEAN DEFAULT true,
+  `show_icms` BOOLEAN DEFAULT true,
+  `show_barcode` BOOLEAN DEFAULT true,
+  `font_name` INT DEFAULT 12,
+  `font_price` INT DEFAULT 18,
+  `font_comparison` INT DEFAULT 10,
+  `font_barcode` INT DEFAULT 8,
+  `cor_fundo` VARCHAR(20) DEFAULT '#ffffff',
+  `cor_texto` VARCHAR(20) DEFAULT '#000000',
+  `cor_preco` VARCHAR(20) DEFAULT '#16a34a',
+  `cor_comparacao` VARCHAR(20) DEFAULT '#2563eb',
+  `criado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `atualizado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+-- Inserir template 'Padrão'
+INSERT INTO etiqueta_configuracoes (
+  nome, largura, altura, show_comparison, show_icms, show_barcode,
+  font_name, font_price, font_comparison, font_barcode,
+  cor_fundo, cor_texto, cor_preco, cor_comparacao
+)
+SELECT * FROM (
+  SELECT
+    'Padrão' AS nome, 140 AS largura, 100 AS altura,
+    1 AS show_comparison, 1 AS show_icms, 1 AS show_barcode,
+    12 AS font_name, 18 AS font_price, 10 AS font_comparison, 8 AS font_barcode,
+    '#ffffff' AS cor_fundo, '#000000' AS cor_texto, '#16a34a' AS cor_preco, '#2563eb' AS cor_comparacao
+) AS tmp
+WHERE NOT EXISTS (
+  SELECT 1 FROM etiqueta_configuracoes WHERE nome = 'Padrão'
+);
+
+-- Inserir template 'Compacta'
+INSERT INTO etiqueta_configuracoes (
+  nome, largura, altura, show_comparison, show_icms, show_barcode,
+  font_name, font_price, font_comparison, font_barcode,
+  cor_fundo, cor_texto, cor_preco, cor_comparacao
+)
+SELECT * FROM (
+  SELECT
+    'Compacta' AS nome, 100 AS largura, 70 AS altura,
+    0 AS show_comparison, 0 AS show_icms, 1 AS show_barcode,
+    10 AS font_name, 14 AS font_price, 8 AS font_comparison, 6 AS font_barcode,
+    '#ffffff' AS cor_fundo, '#000000' AS cor_texto, '#16a34a' AS cor_preco, '#2563eb' AS cor_comparacao
+) AS tmp
+WHERE NOT EXISTS (
+  SELECT 1 FROM etiqueta_configuracoes WHERE nome = 'Compacta'
+);
+
+-- Inserir template 'Premium'
+INSERT INTO etiqueta_configuracoes (
+  nome, largura, altura, show_comparison, show_icms, show_barcode,
+  font_name, font_price, font_comparison, font_barcode,
+  cor_fundo, cor_texto, cor_preco, cor_comparacao
+)
+SELECT * FROM (
+  SELECT
+    'Premium' AS nome, 160 AS largura, 120 AS altura,
+    1 AS show_comparison, 1 AS show_icms, 1 AS show_barcode,
+    14 AS font_name, 22 AS font_price, 12 AS font_comparison, 10 AS font_barcode,
+    '#f8fafc' AS cor_fundo, '#1e293b' AS cor_texto, '#059669' AS cor_preco, '#1d4ed8' AS cor_comparacao
+) AS tmp
+WHERE NOT EXISTS (
+  SELECT 1 FROM etiqueta_configuracoes WHERE nome = 'Premium'
 );

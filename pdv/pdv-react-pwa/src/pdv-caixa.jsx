@@ -35,7 +35,6 @@ import { CardPaymentDialog } from "./components/card-payment-dialog";
 import { MixedPaymentDialog } from "./components/mixed-payment-dialog";
 import { WeightInputDialog } from "./components/weight-input-dialog";
 import { LoginDialog } from "./components/login-dialog";
-import { LabelConfigDialog } from "./components/label-config-dialog";
 import { ReceiptConfigDialog } from "./components/receipt-config-dialog";
 import { CashManagementDialog } from "./components/cash-management-dialog";
 import { ReceiptSelectionDialog } from "./components/receipt-selection-dialog";
@@ -1423,14 +1422,6 @@ export default function PDVCaixa() {
           setCurrentUser(user);
           setShowLogin(false);
         }}
-      />
-
-      {/* Label Config Dialog */}
-      <LabelConfigDialog
-        open={showLabelConfig}
-        onOpenChange={setShowLabelConfig}
-        currentTemplate={labelTemplate}
-        onSave={setLabelTemplate}
       />
 
       {/* Receipt Config Dialog */}

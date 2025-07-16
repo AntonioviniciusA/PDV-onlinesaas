@@ -1,7 +1,6 @@
-import React, { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import JsBarcode from "jsbarcode";
-
-import { useState } from "react";
+import { etiquetaService } from "./services/etiquetaService";
 import { Button } from "./components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Input } from "./components/ui/input";
@@ -23,8 +22,10 @@ import {
   AlertTriangle,
   CheckCircle,
   Calculator,
+  Settings,
 } from "lucide-react";
 import { calculateComparativePrice } from "./components/unit-converter.js";
+import { LabelConfigDialog } from "./components/label-config-dialog.jsx";
 
 export default function EtiquetasPreco({ onBack, products }) {
   const [barcode, setBarcode] = useState("");
@@ -32,8 +33,77 @@ export default function EtiquetasPreco({ onBack, products }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showPreview, setShowPreview] = useState(false);
+  const [templates, setTemplates] = useState([]); // Todos os templates do backend
+  const [currentTemplate, setCurrentTemplate] = useState(null); // Template selecionado
+  const [templateId, setTemplateId] = useState(null);
+  const [loadingConfig, setLoadingConfig] = useState(true);
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
 
   const barcodeInputRef = useRef(null);
+
+  // Carregar templates do backend ao montar
+  useEffect(() => {
+    async function fetchTemplates() {
+      setLoadingConfig(true);
+      try {
+        const allTemplates = await etiquetaService.listTemplates();
+        setTemplates(allTemplates);
+        // Seleciona o primeiro como padrão, ou o mais recente salvo
+        if (allTemplates.length > 0) {
+          setCurrentTemplate({
+            ...allTemplates[0],
+            fontSize: {
+              name: allTemplates[0].font_name,
+              price: allTemplates[0].font_price,
+              comparison: allTemplates[0].font_comparison,
+              barcode: allTemplates[0].font_barcode,
+            },
+            colors: {
+              background: allTemplates[0].cor_fundo,
+              text: allTemplates[0].cor_texto,
+              price: allTemplates[0].cor_preco,
+              comparison: allTemplates[0].cor_comparacao,
+            },
+            showComparison: !!allTemplates[0].show_comparison,
+            showICMS: !!allTemplates[0].show_icms,
+            showBarcode: !!allTemplates[0].show_barcode,
+          });
+          setTemplateId(allTemplates[0].id);
+        }
+      } catch (err) {
+        setError("Erro ao carregar templates de etiqueta");
+      } finally {
+        setLoadingConfig(false);
+      }
+    }
+    fetchTemplates();
+  }, []);
+
+  // Permitir seleção de template na interface
+  const handleSelectTemplate = (id) => {
+    const tpl = templates.find((t) => t.id === id);
+    if (tpl) {
+      setCurrentTemplate({
+        ...tpl,
+        fontSize: {
+          name: tpl.font_name,
+          price: tpl.font_price,
+          comparison: tpl.font_comparison,
+          barcode: tpl.font_barcode,
+        },
+        colors: {
+          background: tpl.cor_fundo,
+          text: tpl.cor_texto,
+          price: tpl.cor_preco,
+          comparison: tpl.cor_comparacao,
+        },
+        showComparison: !!tpl.show_comparison,
+        showICMS: !!tpl.show_icms,
+        showBarcode: !!tpl.show_barcode,
+      });
+      setTemplateId(tpl.id);
+    }
+  };
 
   // Focar no input ao carregar a página
   useEffect(() => {
@@ -55,7 +125,7 @@ export default function EtiquetasPreco({ onBack, products }) {
 
     // Verificar se produto já está na lista
     const existingItem = printList.find(
-      (item) => item.product.id === product.id,
+      (item) => item.product.id === product.id
     );
 
     if (existingItem) {
@@ -64,8 +134,8 @@ export default function EtiquetasPreco({ onBack, products }) {
         prev.map((item) =>
           item.product.id === product.id
             ? { ...item, quantity: item.quantity + 1 }
-            : item,
-        ),
+            : item
+        )
       );
     } else {
       // Adicionar novo item
@@ -81,20 +151,20 @@ export default function EtiquetasPreco({ onBack, products }) {
   const updateQuantity = (productId, quantity) => {
     if (quantity <= 0) {
       setPrintList((prev) =>
-        prev.filter((item) => item.product.id !== productId),
+        prev.filter((item) => item.product.id !== productId)
       );
     } else {
       setPrintList((prev) =>
         prev.map((item) =>
-          item.product.id === productId ? { ...item, quantity } : item,
-        ),
+          item.product.id === productId ? { ...item, quantity } : item
+        )
       );
     }
   };
 
   const removeItem = (productId) => {
     setPrintList((prev) =>
-      prev.filter((item) => item.product.id !== productId),
+      prev.filter((item) => item.product.id !== productId)
     );
   };
 
@@ -114,7 +184,7 @@ export default function EtiquetasPreco({ onBack, products }) {
     // Simular impressão
     const totalLabels = printList.reduce((sum, item) => sum + item.quantity, 0);
     alert(
-      `Imprimindo ${totalLabels} etiquetas...\n\nEsta é uma simulação. Em um sistema real, as etiquetas seriam enviadas para a impressora.`,
+      `Imprimindo ${totalLabels} etiquetas...\n\nEsta é uma simulação. Em um sistema real, as etiquetas seriam enviadas para a impressora.`
     );
 
     // Limpar lista após impressão
@@ -139,7 +209,7 @@ export default function EtiquetasPreco({ onBack, products }) {
             width: 2,
             height: 40,
             displayValue: false,
-          },
+          }
         );
       }
     }, [template.showICMS, product.barcode, product.codigo, product.id]);
@@ -225,9 +295,34 @@ export default function EtiquetasPreco({ onBack, products }) {
                   <Printer className="w-4 h-4 mr-2" />
                   Imprimir na Zebra
                 </Button>
+                <Button
+                  onClick={() => setIsConfigModalOpen(true)}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Configurar Etiquetas
+                </Button>
               </>
             )}
           </div>
+          {/* Seletor de template */}
+          {templates.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Label htmlFor="template-select">Template:</Label>
+              <select
+                id="template-select"
+                value={templateId || ""}
+                onChange={(e) => handleSelectTemplate(Number(e.target.value))}
+                className="border rounded px-2 py-1"
+              >
+                {templates.map((tpl) => (
+                  <option key={tpl.id} value={tpl.id}>
+                    {tpl.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 
@@ -370,7 +465,7 @@ export default function EtiquetasPreco({ onBack, products }) {
                           ? calculateComparativePrice(
                               item.product.price,
                               item.product.quantity,
-                              item.product.measureUnit,
+                              item.product.measureUnit
                             )
                           : null;
 
@@ -438,7 +533,7 @@ export default function EtiquetasPreco({ onBack, products }) {
                                     onClick={() =>
                                       updateQuantity(
                                         item.product.id,
-                                        item.quantity - 1,
+                                        item.quantity - 1
                                       )
                                     }
                                     className="h-6 w-6 p-0"
@@ -454,7 +549,7 @@ export default function EtiquetasPreco({ onBack, products }) {
                                     onClick={() =>
                                       updateQuantity(
                                         item.product.id,
-                                        item.quantity + 1,
+                                        item.quantity + 1
                                       )
                                     }
                                     className="h-6 w-6 p-0"
@@ -502,7 +597,7 @@ export default function EtiquetasPreco({ onBack, products }) {
                       ? calculateComparativePrice(
                           item.product.price,
                           item.product.quantity,
-                          item.product.measureUnit,
+                          item.product.measureUnit
                         )
                       : null;
 
@@ -538,7 +633,7 @@ export default function EtiquetasPreco({ onBack, products }) {
                             {item.product.barcode}
                           </div>
                         </div>
-                      ),
+                      )
                     );
                   })}
                 </div>
@@ -551,6 +646,19 @@ export default function EtiquetasPreco({ onBack, products }) {
           )}
         </div>
       </div>
+
+      {/* Label Config Modal */}
+      <LabelConfigDialog
+        open={isConfigModalOpen}
+        onOpenChange={setIsConfigModalOpen}
+        currentTemplate={currentTemplate}
+        onSave={(newTemplate) => {
+          setCurrentTemplate(newTemplate);
+          setIsConfigModalOpen(false);
+        }}
+        templateId={templateId}
+        setTemplateId={setTemplateId}
+      />
     </div>
   );
 }

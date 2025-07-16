@@ -15,65 +15,37 @@ import { Separator } from "./ui/separator";
 import { Badge } from "./ui/badge";
 import { Settings, Save, Eye, Palette, Layout } from "lucide-react";
 import JsBarcode from "jsbarcode";
-
-const DEFAULT_TEMPLATES = [
-  {
-    id: "standard",
-    name: "Padrão",
-    width: 140,
-    height: 100,
-    showComparison: true,
-    showICMS: true,
-    showBarcode: true,
-    fontSize: { name: 12, price: 18, comparison: 10, barcode: 8 },
-    colors: {
-      background: "#ffffff",
-      text: "#000000",
-      price: "#16a34a",
-      comparison: "#2563eb",
-    },
-  },
-  {
-    id: "compact",
-    name: "Compacta",
-    width: 100,
-    height: 70,
-    showComparison: false,
-    showICMS: false,
-    showBarcode: true,
-    fontSize: { name: 10, price: 14, comparison: 8, barcode: 6 },
-    colors: {
-      background: "#ffffff",
-      text: "#000000",
-      price: "#16a34a",
-      comparison: "#2563eb",
-    },
-  },
-  {
-    id: "premium",
-    name: "Premium",
-    width: 160,
-    height: 120,
-    showComparison: true,
-    showICMS: true,
-    showBarcode: true,
-    fontSize: { name: 14, price: 22, comparison: 12, barcode: 10 },
-    colors: {
-      background: "#f8fafc",
-      text: "#1e293b",
-      price: "#059669",
-      comparison: "#1d4ed8",
-    },
-  },
-];
+import { etiquetaService } from "../services/etiquetaService";
 
 export function LabelConfigDialog({
   open,
   onOpenChange,
   currentTemplate,
   onSave,
+  templates,
 }) {
-  const [template, setTemplate] = useState(currentTemplate);
+  const [template, setTemplate] = useState({
+    id: "standard" || currentTemplate.id,
+    nome: "Padrão" || currentTemplate.nome,
+    largura: 140 || currentTemplate.width,
+    altura: 100 || currentTemplate.height,
+    showComparison: true || currentTemplate.showComparison,
+    showICMS: true || currentTemplate.showICMS,
+    showBarcode: true || currentTemplate.showBarcode,
+    fontSize: {
+      name: 12 || currentTemplate.fontSize.name,
+      price: 18 || currentTemplate.fontSize.price,
+      comparison: 10 || currentTemplate.fontSize.comparison,
+      barcode: 8 || currentTemplate.fontSize.barcode,
+    },
+    colors: {
+      background: "#ffffff" || currentTemplate.colors.background,
+      text: "#000000" || currentTemplate.colors.text,
+      price: "#16a34a" || currentTemplate.colors.price,
+      comparison: "#2563eb" || currentTemplate.colors.comparison,
+    },
+  });
+  const [defaultTemplates, setDefaultTemplates] = useState([]);
   const [selectedPreset, setSelectedPreset] = useState("");
   const barcodeRef = useRef();
 
@@ -87,6 +59,28 @@ export function LabelConfigDialog({
       });
     }
   }, [template.showCodebar]);
+
+  // Buscar templates de etiqueta do backend ao abrir o diálogo
+  useEffect(() => {
+    async function fetchTemplates() {
+      try {
+        const response = await etiquetaService.listTemplates();
+        if (response.success && response.templates) {
+          // Se a prop templates não foi passada, armazene localmente
+          if (!templates) {
+            setDefaultTemplates(response.templates);
+          }
+        }
+      } catch (err) {
+        // Opcional: lidar com erro
+        // alert("Erro ao buscar templates de etiqueta");
+      }
+    }
+    // Só busca se não veio por props
+    if (!templates) {
+      fetchTemplates();
+    }
+  }, [open, templates]);
 
   const handleSave = () => {
     onSave(template);
@@ -172,7 +166,7 @@ export function LabelConfigDialog({
                 Templates Predefinidos
               </h3>
               <div className="grid grid-cols-1 gap-2">
-                {DEFAULT_TEMPLATES.map((preset) => (
+                {defaultTemplates.map((preset) => (
                   <Button
                     key={preset.id}
                     variant={
@@ -181,7 +175,7 @@ export function LabelConfigDialog({
                     onClick={() => loadPreset(preset)}
                     className="justify-start"
                   >
-                    {preset.name}
+                    {preset.nome}
                     <Badge variant="secondary" className="ml-2">
                       {preset.width}×{preset.height}mm
                     </Badge>

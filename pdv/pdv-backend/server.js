@@ -5,8 +5,14 @@ const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 require("dotenv").config();
 
-const { generateDatabase, testConnection } = require("./config/database");
-const saasController = require("./controllers/saas.controller.js");
+const {
+  generateDatabase,
+  testConnection,
+  sincronizarProdutos,
+  sincronizarCupons,
+  sincronizarRecibos,
+  sincronizarVendas,
+} = require("./config/database");
 
 const app = express();
 const PORT = process.env.PORT;
@@ -35,31 +41,6 @@ app.use((req, res, next) => {
 
 // Rotas
 app.use("/local", require("./routers/router.js"));
-
-// Funções de sincronização (placeholders)
-async function sincronizarProdutos() {
-  console.log("Sincronizando produtos...");
-  // TODO: implementar lógica de sincronização
-  return Promise.resolve();
-}
-
-async function sincronizarCupons() {
-  console.log("Sincronizando cupons...");
-  // TODO: implementar lógica de sincronização
-  return Promise.resolve();
-}
-
-async function sincronizarRecibos() {
-  console.log("Sincronizando recibos...");
-  // TODO: implementar lógica de sincronização
-  return Promise.resolve();
-}
-
-async function sincronizarVendas() {
-  console.log("Sincronizando vendas...");
-  // TODO: implementar lógica de sincronização
-  return Promise.resolve();
-}
 
 // Inicializar servidor
 const startServer = async () => {

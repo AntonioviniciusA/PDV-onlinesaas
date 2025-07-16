@@ -278,6 +278,31 @@ async function migrateDatabase() {
   }
 }
 
+// Funções de sincronização (placeholders)
+async function sincronizarProdutos() {
+  console.log("Sincronizando produtos...");
+  // TODO: implementar lógica de sincronização
+  return Promise.resolve();
+}
+
+async function sincronizarCupons() {
+  console.log("Sincronizando cupons...");
+  // TODO: implementar lógica de sincronização
+  return Promise.resolve();
+}
+
+async function sincronizarRecibos() {
+  console.log("Sincronizando recibos...");
+  // TODO: implementar lógica de sincronização
+  return Promise.resolve();
+}
+
+async function sincronizarVendas() {
+  console.log("Sincronizando vendas...");
+  // TODO: implementar lógica de sincronização
+  return Promise.resolve();
+}
+
 // Export functions
 module.exports = {
   pool,
@@ -288,4 +313,8 @@ module.exports = {
   createAdminUsers,
   validateDatabaseSchema,
   migrateDatabase,
+  sincronizarProdutos,
+  sincronizarCupons,
+  sincronizarRecibos,
+  sincronizarVendas,
 };
