@@ -49,8 +49,8 @@ export function CashManagementDialog({
       return;
     }
 
-    if (action === "open" && value < 50) {
-      setError("Valor mínimo para abertura: R$ 50,00");
+    if (action === "open" && value < 25) {
+      setError("Valor mínimo para abertura: R$ 25,00");
       return;
     }
 

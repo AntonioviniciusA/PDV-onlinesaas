@@ -1,12 +1,5 @@
 import React from "react";
-
-function Logo() {
-  return (
-    <div className="size-8 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-primary-foreground">
-      D
-    </div>
-  );
-}
+import Logo from "./Logo";
 
 export default function Footer() {
   return (
@@ -16,7 +9,7 @@ export default function Footer() {
           <div className="space-y-4">
             <div className="flex items-center gap-2 font-bold">
               <Logo />
-              <span>Dominus PDV</span>
+              <span>NeoCaixa PDV</span>
             </div>
             <p className="text-sm text-muted-foreground">
               Otimize seu fluxo de trabalho com nossa plataforma completa de
@@ -194,7 +187,7 @@ export default function Footer() {
         </div>
         <div className="flex flex-col gap-4 sm:flex-row justify-between items-center border-t border-border/40 pt-8">
           <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} Dominus PDV. Todos os direitos
+            &copy; {new Date().getFullYear()} NeoCaixa PDV. Todos os direitos
             reservados.
           </p>
           <div className="flex gap-4">

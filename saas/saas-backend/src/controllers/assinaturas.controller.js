@@ -308,6 +308,54 @@ const getassinaturastatus = async (req, res) => {
   }
 };
 
+// Buscar condições do plano de uma assinatura
+const getPlanoCondicoesByAssinatura = async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Buscar assinatura
+    const [assinaturas] = await pool.query(
+      "SELECT * FROM assinaturas WHERE id = ?",
+      [id]
+    );
+    if (!assinaturas || assinaturas.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Assinatura não encontrada",
+      });
+    }
+    const assinatura = assinaturas[0];
+    // Buscar plano relacionado
+    const [planos] = await pool.query("SELECT * FROM plano WHERE id = ?", [
+      assinatura.id_plano,
+    ]);
+    if (!planos || planos.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Plano não encontrado",
+      });
+    }
+    const plano = planos[0];
+    // Converter funcionalidades de JSON string para array
+    let funcionalidades = plano.funcionalidades;
+    try {
+      funcionalidades = JSON.parse(plano.funcionalidades);
+    } catch (e) {}
+    res.json({
+      success: true,
+      plano: {
+        ...plano,
+        funcionalidades,
+      },
+    });
+  } catch (error) {
+    console.error("Erro ao buscar condições do plano da assinatura:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erro ao buscar condições do plano da assinatura",
+    });
+  }
+};
+
 module.exports = {
   createassinaturas,
   getassinaturas,
@@ -315,4 +363,5 @@ module.exports = {
   listUserassinaturas,
   webhook,
   getassinaturastatus,
+  getPlanoCondicoesByAssinatura, // nova função exportada
 };

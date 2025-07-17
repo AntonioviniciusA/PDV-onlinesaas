@@ -1,4 +1,4 @@
-# 🚀 Funcionalidade Offline - Dominus PDV
+# 🚀 Funcionalidade Offline - NeoCaixa PDV
 
 Este documento explica como funciona a funcionalidade offline implementada no PDV.
 
@@ -154,7 +154,7 @@ self.addEventListener("sync", (event) => {
 
 ### Verificar Dados
 
-1. **Chrome DevTools**: Application → IndexedDB → DominusPDV
+1. **Chrome DevTools**: Application → IndexedDB → NeoCaixaPDV
 2. **Console**: `localStorage.getItem('offline-cupons')`
 
 ## 🎯 Próximos Passos
@@ -167,4 +167,4 @@ self.addEventListener("sync", (event) => {
 
 ---
 
-**Desenvolvido com ❤️ para o Dominus PDV**
+**Desenvolvido com ❤️ para o NeoCaixa PDV**

@@ -1,7 +1,7 @@
 // Configuração da API
 export const API_CONFIG = {
   // URL base da API - ajuste conforme sua configuração
-  BASE_URL: process.env.REACT_APP_API_URL,
+  BASE_URL: process.env.URL_API_PDV,
 
   // Endpoints
   ENDPOINTS: {

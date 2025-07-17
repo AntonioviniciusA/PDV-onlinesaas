@@ -27,11 +27,11 @@ export default function Hero() {
           <div className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6 bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
             <TypeAnimation
               sequence={[
-                "Transforme seu Negócio com o Dominus PDV",
+                "Transforme seu Negócio com o NeoCaixa PDV",
                 2000,
-                "Gerencie Vendas com o Dominus PDV",
+                "Gerencie Vendas com o NeoCaixa PDV",
                 2000,
-                "Automatize Processos com o Dominus PDV",
+                "Automatize Processos com o NeoCaixa PDV",
                 2000,
               ]}
               wrapper="h1"
@@ -95,7 +95,7 @@ export default function Hero() {
               src={PDVIMAGE}
               width={1280}
               height={720}
-              alt="Dominus PDV dashboard"
+              alt="NeoCaixa PDV dashboard"
               className="w-full h-auto"
             />
             <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-black/10 dark:ring-white/10"></div>

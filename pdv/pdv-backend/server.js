@@ -21,7 +21,31 @@ const PORT = process.env.PORT;
 app.use(helmet());
 
 // CORS básico local
-app.use(cors());
+// Configuração do CORS
+const allowedOrigins = [
+  process.env.CORS_ORIGIN_1,
+  process.env.CORS_ORIGIN_2,
+  process.env.CORS_ORIGIN_3,
+  process.env.CORS_ORIGIN_4,
+];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Permite requisições sem origem (como mobile apps ou curl)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+  credentials: true, // Se precisar de cookies/auth
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
 
 // Rate Limiting
 const limiter = rateLimit({

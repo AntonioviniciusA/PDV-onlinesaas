@@ -29,6 +29,7 @@ const allowedOrigins = [
   process.env.CORS_ORIGIN_1,
   process.env.CORS_ORIGIN_2,
   process.env.CORS_ORIGIN_3,
+  process.env.CORS_ORIGIN_4,
 ];
 
 const corsOptions = {

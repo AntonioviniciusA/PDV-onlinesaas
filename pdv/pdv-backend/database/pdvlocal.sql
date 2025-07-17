@@ -179,7 +179,12 @@ CREATE TABLE IF NOT EXISTS recibo_itens (
 CREATE TABLE IF NOT EXISTS caixas (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `id_loja` VARCHAR(36) NOT NULL,
+  `caixa_numero` INT NOT NULL UNIQUE,
   `status` ENUM('aberto', 'fechado') NOT NULL,
+  `valor_inicial` DECIMAL(10,2) NOT NULL,
+  `valor_final` DECIMAL(10,2) NOT NULL,
+  `diferenca` DECIMAL(10,2) NOT NULL,
+  `usuario` VARCHAR(100) NOT NULL,
   `criado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `atualizado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );

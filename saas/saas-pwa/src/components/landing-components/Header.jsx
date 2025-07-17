@@ -5,15 +5,8 @@ import { Button } from "../ui/button";
 import { useTheme } from "../../hooks/use-theme";
 import { useNavigate } from "react-router-dom";
 import { AuthService } from "../../services/authServices";
+import Logo from "./Logo";
 // import { useQuery } from "@tanstack/react-query"; // Removido
-
-function Logo() {
-  return (
-    <div className="size-8 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-primary-foreground">
-      D
-    </div>
-  );
-}
 
 export default function Header() {
   const navigate = useNavigate();
@@ -67,7 +60,7 @@ export default function Header() {
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-2 font-bold">
           <Logo />
-          <span>Dominus PDV</span>
+          <span>NeoCaixa PDV</span>
         </div>
         <nav className="hidden md:flex gap-8">
           <a

@@ -6,9 +6,9 @@ const {
   cancelassinaturas,
   listUserassinaturas,
   webhook,
+  getPlanoCondicoesByAssinatura,
 } = require("../controllers/assinaturas.controller.js");
 const auth = require("../middlewares/auth.middleware");
-const { checkTrialExpired } = require("../middlewares/trialCheck.middleware");
 
 const router = express.Router();
 
@@ -38,5 +38,7 @@ router.post("/create", createassinaturasValidation, createassinaturas);
 router.get("/status", getassinaturastatus);
 router.get("/assinaturas", listUserassinaturas);
 router.post("/cancel/:id", cancelassinaturas);
+// Nova rota: condições do plano da assinatura
+router.get("/:id/condicoes", getPlanoCondicoesByAssinatura);
 
 module.exports = router;

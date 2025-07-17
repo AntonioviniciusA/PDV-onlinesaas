@@ -34,7 +34,7 @@ export const API_CONFIG = {
 Crie um arquivo `.env` na raiz do projeto:
 
 ```env
-REACT_APP_API_URL=http://sua-api.com
+URL_API_PDV=http://sua-api.com
 ```
 
 ### 3. Uso Normal

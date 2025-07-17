@@ -8,7 +8,7 @@ export default function Testimonials() {
   const testimonials = [
     {
       quote:
-        "O Dominus PDV transformou como gerenciamos nossas vendas. Os recursos de automação nos economizaram inúmeras horas de trabalho manual.",
+        "O NeoCaixa PDV transformou como gerenciamos nossas vendas. Os recursos de automação nos economizaram inúmeras horas de trabalho manual.",
       author: "Sarah Johnson",
       role: "Gerente de Projetos, TechCorp",
       rating: 5,
@@ -29,7 +29,7 @@ export default function Testimonials() {
     },
     {
       quote:
-        "Tentamos várias soluções similares, mas nenhuma se compara à facilidade de uso e recursos abrangentes do Dominus PDV. Foi um divisor de águas.",
+        "Tentamos várias soluções similares, mas nenhuma se compara à facilidade de uso e recursos abrangentes do NeoCaixa PDV. Foi um divisor de águas.",
       author: "David Kim",
       role: "CEO, InnovateNow",
       rating: 5,
@@ -43,7 +43,7 @@ export default function Testimonials() {
     },
     {
       quote:
-        "A implementação foi perfeita e o ROI foi quase imediato. Reduzimos nossos custos operacionais em 30% desde que mudamos para o Dominus PDV.",
+        "A implementação foi perfeita e o ROI foi quase imediato. Reduzimos nossos custos operacionais em 30% desde que mudamos para o NeoCaixa PDV.",
       author: "James Wilson",
       role: "COO, ScaleUp Inc",
       rating: 5,
