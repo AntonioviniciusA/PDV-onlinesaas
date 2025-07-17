@@ -17,9 +17,9 @@ export default function Router() {
         path="/pdv"
         element={
           <PrivateRoute>
-            <PdvProtectedRoute requiredPermissions={["pdv.operate"]}>
-              <PDVCaixa />
-            </PdvProtectedRoute>
+            {/* <PdvProtectedRoute requiredPermissions={["pdv.operate"]}> */}
+            <PDVCaixa />
+            {/* </PdvProtectedRoute> */}
           </PrivateRoute>
         }
       />

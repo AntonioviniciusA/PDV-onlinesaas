@@ -35,7 +35,7 @@ export default function PdvProtectedRoute({
             }
           }
           // Admin sempre tem acesso
-          if (userPerms.includes("*") || (user && user.role === "admin")) {
+          if (userPerms.includes("*") || (user && user.perfil === "admin")) {
             setHasPermission(true);
           } else {
             // Pelo menos uma permissão exigida
@@ -59,7 +59,7 @@ export default function PdvProtectedRoute({
   if (loading) return null;
 
   if (!hasToken || !isAuth || !hasPermission) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/pdv" replace />;
   }
 
   return children;
