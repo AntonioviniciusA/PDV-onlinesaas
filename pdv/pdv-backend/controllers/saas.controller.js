@@ -2,7 +2,8 @@ const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 const { generateDatabase, testConnection } = require("../config/database");
-
+const dotenv = require("dotenv");
+dotenv.config();
 // Controller para verificar se a assinatura do cliente está ativa
 const verifySubscription = async (req, res) => {
   try {
@@ -16,7 +17,7 @@ const verifySubscription = async (req, res) => {
     }
 
     // Chama o endpoint do outro backend para verificar a licença
-    const url = `http://localhost:5000/saas/pdv/verificar-licenca/${idcliente}`;
+    const url = `${process.env.SAAS_URL}/saas/pdv/verificar-licenca/${idcliente}`;
     // Faz a requisição para o backend SaaS
     const resposta = await axios.get(url);
 
@@ -77,10 +78,10 @@ const loginSaas = async (req, res) => {
     const { email, senha, cnpj } = req.body;
     // Decide tipo de login
     let loginPayload = { email, senha };
-    let loginUrl = "http://localhost:5000/saas/cliente/login";
+    let loginUrl = `${process.env.SAAS_URL}/saas/cliente/login`;
     if (cnpj) {
       loginPayload.cnpj = cnpj;
-      loginUrl = "http://localhost:5000/saas/parceiro-saas/login";
+      loginUrl = `${process.env.SAAS_URL}/saas/parceiro-saas/login`;
     }
     // Faz login na API SaaS
     const resposta = await axios.post(loginUrl, loginPayload);

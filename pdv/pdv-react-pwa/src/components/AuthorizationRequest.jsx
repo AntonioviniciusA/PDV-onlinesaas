@@ -3,32 +3,37 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
 import { Shield } from "lucide-react";
+import { localAuthService } from "../services/localAuthService";
 
 export default function AuthorizationRequest({
   open,
   onOpenChange,
   title = "Autorização Necessária",
   description = "",
-  users = [],
   onAuthorize,
 }) {
-  const [selectedUser, setSelectedUser] = useState(users[0]?.id || "");
-  const [password, setPassword] = useState("");
+  const [entrada, setEntrada] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleAuthorize = () => {
-    const user = users.find((u) => u.id === selectedUser);
-    if (!user) {
-      setError("Selecione um usuário");
-      return;
+  const handleAuthorize = async () => {
+    try {
+      setIsLoading(true);
+      const autorizacao = await localAuthService.autorizar(entrada);
+      if (autorizacao.success) {
+        setError("");
+        onAuthorize(autorizacao.user, entrada);
+        setEntrada("");
+        setIsLoading(false);
+      } else {
+        setError(autorizacao.error);
+        setIsLoading(false);
+      }
+    } catch (error) {
+      setError(error.message);
+      setIsLoading(false);
     }
-    if (!password) {
-      setError("Digite a senha/cartão");
-      return;
-    }
-    setError("");
-    onAuthorize(user, password);
-    setPassword("");
+    setIsLoading(false);
   };
 
   return (
@@ -45,33 +50,23 @@ export default function AuthorizationRequest({
         )}
         <div className="space-y-3">
           <div>
-            <Label>Usuário</Label>
-            <select
-              className="w-full border rounded p-2 mt-1"
-              value={selectedUser}
-              onChange={(e) => setSelectedUser(e.target.value)}
-            >
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.nome} ({u.cargo})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
             <Label>Senha/Cartão</Label>
             <input
               type="password"
               className="w-full border rounded p-2 mt-1"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={entrada}
+              onChange={(e) => setEntrada(e.target.value)}
               autoComplete="off"
               placeholder="Digite a senha ou passe o cartão"
             />
           </div>
           {error && <div className="text-red-600 text-sm">{error}</div>}
-          <Button className="w-full" onClick={handleAuthorize}>
-            Autorizar
+          <Button
+            className="w-full"
+            onClick={handleAuthorize}
+            disabled={isLoading}
+          >
+            {isLoading ? "Carregando..." : "Autorizar"}
           </Button>
         </div>
       </DialogContent>

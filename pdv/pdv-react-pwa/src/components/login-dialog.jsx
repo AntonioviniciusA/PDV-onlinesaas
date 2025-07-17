@@ -1,23 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Alert, AlertDescription } from "./ui/alert";
 import { LogIn, AlertTriangle } from "lucide-react";
-import { MOCK_USERS } from "../types/user.js";
+import { localAuthService } from "../services/localAuthService";
 
 export function LoginDialog({ open, onLogin }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [entrada, setEntrada] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -26,19 +19,19 @@ export function LoginDialog({ open, onLogin }) {
     setIsLoading(true);
     setError("");
 
-    // Simular autenticação
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const login = await localAuthService.login({
+      entrada: entrada,
+    });
 
-    const user = MOCK_USERS.find((u) => u.username === username && u.active);
-
-    if (user && password === "123456") {
-      // Senha padrão para demo
-      onLogin(user);
-      // Limpar campos após login bem-sucedido
-      setUsername("");
-      setPassword("");
+    if (login.success) {
+      console.log("login.user", login.user);
+      console.log("login.token", login.token);
+      localAuthService.setAuthData(login.token, login.user);
+      onLogin(login.user);
+      setIsLoading(false);
     } else {
       setError("Usuário ou senha inválidos");
+      setIsLoading(false);
     }
 
     setIsLoading(false);
@@ -55,31 +48,19 @@ export function LoginDialog({ open, onLogin }) {
             <LogIn className="w-5 h-5" />
             Login no Sistema
           </DialogTitle>
+          <div id="login-dialog-description" className="sr-only">
+            Digite sua senha para acessar o sistema PDV
+          </div>
         </DialogHeader>
-        <DialogDescription id="login-dialog-description">
-          Faça login com um dos usuários de teste abaixo. Senha padrão: 123456
-        </DialogDescription>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="username">Usuário</Label>
+            <Label htmlFor="entrada">Senha</Label>
             <Input
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Digite seu usuário"
-              required
-              autoFocus
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="password">Senha</Label>
-            <Input
-              id="password"
+              id="entrada"
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={entrada}
+              onChange={(e) => setEntrada(e.target.value)}
               placeholder="Digite sua senha"
               required
             />
@@ -96,27 +77,6 @@ export function LoginDialog({ open, onLogin }) {
             {isLoading ? "Entrando..." : "Entrar"}
           </Button>
         </form>
-
-        <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded">
-          <strong>Usuários para teste:</strong>
-          <div className="mt-2 space-y-1">
-            <div>
-              <strong>joao.caixa</strong> - Operador de Caixa
-            </div>
-            <div>
-              <strong>maria.fiscal</strong> - Fiscal
-            </div>
-            <div>
-              <strong>carlos.supervisor</strong> - Supervisor
-            </div>
-            <div>
-              <strong>ana.gerente</strong> - Gerente
-            </div>
-            <div className="mt-2">
-              <strong>Senha:</strong> 123456
-            </div>
-          </div>
-        </div>
       </DialogContent>
     </Dialog>
   );

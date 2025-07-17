@@ -8,6 +8,7 @@ const dbConfig = {
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
+  database: process.env.DB_DATABASE,
   port: process.env.DB_PORT,
   waitForConnections: true,
   connectionLimit: 10,
@@ -136,7 +137,7 @@ async function generateDatabase() {
     await connection.beginTransaction();
 
     // Execute database.sql which contains all table creation and foreign key constraints
-    await executeSqlFile(path.join(__dirname, "../database/database.sql"));
+    await executeSqlFile(path.join(__dirname, "../database/pdvlocal.sql"));
 
     await connection.commit();
     console.log("✅ Database schema created successfully!");

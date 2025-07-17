@@ -1,5 +1,5 @@
 import axios from "axios";
-
+import { useNavigate } from "react-router-dom";
 export const apiNoAuth = axios.create({
   baseURL: `${process.env.REACT_APP_API_URL}/local`,
   headers: {
@@ -14,6 +14,34 @@ export const apiAuth = axios.create({
   },
 });
 
+export const apiSaas = axios.create({
+  baseURL: `${process.env.REACT_APP_API_URL2}/saas`,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+apiSaas.interceptors.request.use((config) => {
+  const token = localStorage.getItem("t") || sessionStorage.getItem("t");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+apiSaas.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      const navigate = useNavigate();
+      console.error("Token expirado ou inválido");
+      localStorage.removeItem("t");
+      sessionStorage.removeItem("t");
+      navigate("/", { replace: true });
+    }
+    return Promise.reject(error);
+  }
+);
 // Interceptor para injetar token a TODAS as requisições
 apiAuth.interceptors.request.use((config) => {
   const token =

@@ -26,37 +26,38 @@ import {
 } from "lucide-react";
 import { calculateComparativePrice } from "./components/unit-converter.js";
 import { LabelConfigDialog } from "./components/label-config-dialog.jsx";
+import { BtnVoltarPDV } from "./components/BtnVoltarPDV.jsx";
 
-export default function EtiquetasPreco({ onBack, products }) {
-  const [barcode, setBarcode] = useState("");
+export default function EtiquetasPreco({ products }) {
+  const [loading, setLoading] = useState(true);
   const [printList, setPrintList] = useState([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showPreview, setShowPreview] = useState(false);
+
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [barcode, setBarcode] = useState("");
+  const barcodeInputRef = useRef(null);
+
   const [templates, setTemplates] = useState([]); // Todos os templates do backend
   const [currentTemplate, setCurrentTemplate] = useState(null); // Template selecionado
   const [templateId, setTemplateId] = useState(null);
-  const [loadingConfig, setLoadingConfig] = useState(true);
-  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
-
-  const barcodeInputRef = useRef(null);
-
   // Carregar templates do backend ao montar
   useEffect(() => {
     async function fetchTemplates() {
-      setLoadingConfig(true);
+      setLoading(true);
       try {
-        const allTemplates = await etiquetaService.listTemplates();
+        const allTemplates = await etiquetaService.listEtiquetaTemplates();
         setTemplates(allTemplates);
         // Seleciona o primeiro como padrão, ou o mais recente salvo
         if (allTemplates.length > 0) {
           setCurrentTemplate({
             ...allTemplates[0],
             fontSize: {
-              name: allTemplates[0].font_name,
-              price: allTemplates[0].font_price,
-              comparison: allTemplates[0].font_comparison,
-              barcode: allTemplates[0].font_barcode,
+              name: allTemplates[0].fonte_nome,
+              price: allTemplates[0].fonte_preco,
+              comparison: allTemplates[0].fonte_comparacao,
+              barcode: allTemplates[0].fonte_barcode,
             },
             colors: {
               background: allTemplates[0].cor_fundo,
@@ -64,16 +65,16 @@ export default function EtiquetasPreco({ onBack, products }) {
               price: allTemplates[0].cor_preco,
               comparison: allTemplates[0].cor_comparacao,
             },
-            showComparison: !!allTemplates[0].show_comparison,
-            showICMS: !!allTemplates[0].show_icms,
-            showBarcode: !!allTemplates[0].show_barcode,
+            mostrar_comparacao: !!allTemplates[0].mostrar_comparacao,
+            mostrar_icms: !!allTemplates[0].mostrar_icms,
+            mostrar_codigo_de_barra: !!allTemplates[0].mostrar_codigo_de_barra,
           });
           setTemplateId(allTemplates[0].id);
         }
       } catch (err) {
         setError("Erro ao carregar templates de etiqueta");
       } finally {
-        setLoadingConfig(false);
+        setLoading(false);
       }
     }
     fetchTemplates();
@@ -86,10 +87,10 @@ export default function EtiquetasPreco({ onBack, products }) {
       setCurrentTemplate({
         ...tpl,
         fontSize: {
-          name: tpl.font_name,
-          price: tpl.font_price,
-          comparison: tpl.font_comparison,
-          barcode: tpl.font_barcode,
+          name: tpl.fonte_nome,
+          price: tpl.fonte_preco,
+          comparison: tpl.fonte_comparacao,
+          barcode: tpl.fonte_barcode,
         },
         colors: {
           background: tpl.cor_fundo,
@@ -97,9 +98,9 @@ export default function EtiquetasPreco({ onBack, products }) {
           price: tpl.cor_preco,
           comparison: tpl.cor_comparacao,
         },
-        showComparison: !!tpl.show_comparison,
-        showICMS: !!tpl.show_icms,
-        showBarcode: !!tpl.show_barcode,
+        mostrar_comparacao: !!tpl.mostrar_comparacao,
+        mostrar_icms: !!tpl.mostrar_icms,
+        mostrar_codigo_de_barra: !!tpl.mostrar_codigo_de_barra,
       });
       setTemplateId(tpl.id);
     }
@@ -200,7 +201,7 @@ export default function EtiquetasPreco({ onBack, products }) {
     const barcodeRef = useRef();
 
     useEffect(() => {
-      if (template.showICMS && barcodeRef.current) {
+      if (template.mostrar_icms && barcodeRef.current) {
         JsBarcode(
           barcodeRef.current,
           product.barcode || product.codigo || product.id,
@@ -212,12 +213,12 @@ export default function EtiquetasPreco({ onBack, products }) {
           }
         );
       }
-    }, [template.showICMS, product.barcode, product.codigo, product.id]);
+    }, [template.mostrar_icms, product.barcode, product.codigo, product.id]);
 
     return (
       <div className="etiqueta">
         {/* ...outros elementos da etiqueta... */}
-        {template.showICMS && <svg ref={barcodeRef}></svg>}
+        {template.mostrar_icms && <svg ref={barcodeRef}></svg>}
       </div>
     );
   }
@@ -258,10 +259,7 @@ export default function EtiquetasPreco({ onBack, products }) {
       <div className="flex-shrink-0 p-4 border-b bg-white">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button onClick={onBack} variant="outline" size="sm">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Voltar
-            </Button>
+            <BtnVoltarPDV />
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
                 Etiquetas de Preço
@@ -270,6 +268,14 @@ export default function EtiquetasPreco({ onBack, products }) {
                 Gerar etiquetas para produtos
               </p>
             </div>
+            <Button
+              onClick={() => setIsConfigModalOpen(true)}
+              variant="outline"
+              size="sm"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">Config. Etiquetas</span>
+            </Button>
           </div>
           <div className="flex gap-2">
             {printList.length > 0 && (

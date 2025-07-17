@@ -52,7 +52,7 @@ import AuthorizationRequest from "./components/AuthorizationRequest";
 import beepSound from "./assets/sounds/beep.mp3";
 
 import { initialProducts } from "./data/initialProducts";
-import { localUsers } from "./data/localUsers";
+
 import { cupomService } from "./services/cupomServices.js";
 
 export default function PDVCaixa() {
@@ -432,11 +432,14 @@ export default function PDVCaixa() {
 
   const hasPermission = (module, action) => {
     if (!currentUser) return false;
-    if (currentUser.role === "admin") return true;
+    if (currentUser.perfil === "admin") return true;
+    if (!currentUser.permissions || !Array.isArray(currentUser.permissions))
+      return false;
 
-    const permission = currentUser.permissions.find((p) => p.module === module);
+    // Verifica se existe a permissão no formato 'modulo.ação' ou '*'
     return (
-      permission?.actions.includes(action) || permission?.actions.includes("*")
+      currentUser.permissions.includes(`${module}.${action}`) ||
+      currentUser.permissions.includes("*")
     );
   };
 
@@ -779,26 +782,17 @@ export default function PDVCaixa() {
 
   // Renderizar telas diferentes
   if (currentScreen === "historico") {
-    return <HistoricoVendas onBack={() => setCurrentScreen("pdv")} />;
+    return <HistoricoVendas />;
   }
 
   if (currentScreen === "cadastro") {
     return (
-      <CadastroProdutos
-        onBack={() => setCurrentScreen("pdv")}
-        products={products}
-        onUpdateProducts={setProducts}
-      />
+      <CadastroProdutos products={products} onUpdateProducts={setProducts} />
     );
   }
 
   if (currentScreen === "etiquetas") {
-    return (
-      <EtiquetasPreco
-        onBack={() => setCurrentScreen("pdv")}
-        products={products}
-      />
-    );
+    return <EtiquetasPreco products={products} />;
   }
 
   return (
@@ -1365,7 +1359,6 @@ export default function PDVCaixa() {
         onOpenChange={(open) => !open && setAuthorizationRequest(null)}
         title={authorizationRequest?.title || ""}
         description={authorizationRequest?.description || ""}
-        users={localUsers}
         onAuthorize={(user, password) => {
           // Simulação: senha correta
           if (user.senha === password) {
@@ -1419,6 +1412,14 @@ export default function PDVCaixa() {
       <LoginDialog
         open={showLogin}
         onLogin={(user) => {
+          // Corrigir permissions se vier como string
+          if (typeof user.permissions === "string") {
+            try {
+              user.permissions = JSON.parse(user.permissions);
+            } catch {
+              user.permissions = [];
+            }
+          }
           setCurrentUser(user);
           setShowLogin(false);
         }}

@@ -54,7 +54,7 @@ const startServer = async () => {
 
     app.listen(PORT, () => {
       console.log(
-        `\u2728 PDV rodando em ${process.env.URL_PDV}:${process.env.PORT}`
+        `\u2728 PDV rodando em ${process.env.PDV_URL}:${process.env.PORT}`
       );
     });
   } catch (error) {

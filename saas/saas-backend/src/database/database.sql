@@ -96,26 +96,5 @@ CREATE TABLE IF NOT EXISTS `codigos_verificacao` (
    FOREIGN KEY (`id_cliente`) REFERENCES `cliente`(`id`)
 );
 
-CREATE TABLE IF NOT EXISTS `configuracao`(
-    `id` VARCHAR(36) NOT NULL,
-    `id_cliente` VARCHAR(36) NOT NULL,
-    `id_assinatura` VARCHAR(36) NOT NULL,
-    `id_plano` int NOT NULL,
-    `id_assinatura` VARCHAR(36) NOT NULL,
-    `seguranca_2fa` BOOLEAN DEFAULT false,
-    `dispositivos_2fa` BOOLEAN DEFAULT false,
-    `notificacoes_email` BOOLEAN DEFAULT false,
-    `notificacoes_sms` BOOLEAN DEFAULT false,
-    `notificacoes_push` BOOLEAN DEFAULT false,
-    `notificacoes_whatsapp` BOOLEAN DEFAULT false,
-    `idioma` VARCHAR(10) DEFAULT 'pt-BR',
-    `fuso_horario` VARCHAR(10) DEFAULT 'America/Sao_Paulo',
-    `cor_principal` VARCHAR(10) DEFAULT '#000000',
-    `cor_secundaria` VARCHAR(10) DEFAULT '#000000',
-    `cor_terciaria` VARCHAR(10) DEFAULT '#000000',
-    PRIMARY KEY(`id`),
-    FOREIGN KEY (`id_cliente`) REFERENCES `cliente`(`id`),
-    FOREIGN KEY (`id_plano`) REFERENCES `plano`(`id`),
-    FOREIGN KEY (`id_assinatura`) REFERENCES `assinaturas`(`id`)
-);
+
 

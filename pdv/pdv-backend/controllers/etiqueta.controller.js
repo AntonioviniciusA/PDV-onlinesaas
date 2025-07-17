@@ -23,19 +23,19 @@ const saveEtiquetaConfig = async (req, res) => {
     const cfg = req.body;
     const [result] = await pool.query(
       `INSERT INTO etiqueta_configuracoes
-      (nome, largura, altura, show_comparison, show_icms, show_barcode, font_name, font_price, font_comparison, font_barcode, cor_fundo, cor_texto, cor_preco, cor_comparacao)
+      (nome, largura, altura, mostrar_comparacao, mostrar_icms, mostrar_codigo_de_barra, fonte_nome, fonte_preco, fonte_comparacao, fonte_codigo_de_barra, cor_fundo, cor_texto, cor_preco, cor_comparacao)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         cfg.nome,
         cfg.largura,
         cfg.altura,
-        !!cfg.show_comparison,
-        !!cfg.show_icms,
-        !!cfg.show_barcode,
-        cfg.font_name,
-        cfg.font_price,
-        cfg.font_comparison,
-        cfg.font_barcode,
+        !!cfg.mostrar_comparacao,
+        !!cfg.mostrar_icms,
+        !!cfg.mostrar_codigo_de_barra,
+        cfg.fonte_nome,
+        cfg.fonte_preco,
+        cfg.fonte_comparacao,
+        cfg.fonte_codigo_de_barra,
         cfg.cor_fundo,
         cfg.cor_texto,
         cfg.cor_preco,
@@ -55,21 +55,21 @@ const updateEtiquetaConfig = async (req, res) => {
     const cfg = req.body;
     const [result] = await pool.query(
       `UPDATE etiqueta_configuracoes SET
-        nome=?, largura=?, altura=?, show_comparison=?, show_icms=?, show_barcode=?,
-        font_name=?, font_price=?, font_comparison=?, font_barcode=?,
+        nome=?, largura=?, altura=?, mostrar_comparacao=?, mostrar_icms=?, mostrar_codigo_de_barra=?,
+        fonte_nome=?, fonte_preco=?, fonte_comparacao=?, fonte_codigo_de_barra=?,
         cor_fundo=?, cor_texto=?, cor_preco=?, cor_comparacao=?
       WHERE id=?`,
       [
         cfg.nome,
         cfg.largura,
         cfg.altura,
-        !!cfg.show_comparison,
-        !!cfg.show_icms,
-        !!cfg.show_barcode,
-        cfg.font_name,
-        cfg.font_price,
-        cfg.font_comparison,
-        cfg.font_barcode,
+        !!cfg.mostrar_comparacao,
+        !!cfg.mostrar_icms,
+        !!cfg.mostrar_codigo_de_barra,
+        cfg.fonte_nome,
+        cfg.fonte_preco,
+        cfg.fonte_comparacao,
+        cfg.fonte_codigo_de_barra,
         cfg.cor_fundo,
         cfg.cor_texto,
         cfg.cor_preco,
@@ -87,15 +87,52 @@ const updateEtiquetaConfig = async (req, res) => {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
+// Listar todos os templates padrão de etiqueta
+const listDefaultEtiquetaTemplates = async (req, res) => {
+  let connection;
+  try {
+    console.log("listEtiquetaTemplates");
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+    const [rows] = await connection.query(
+      "SELECT * FROM etiqueta_configuracoes WHERE id_loja = '00000000-0000-0000-0000-000000000000'"
+    );
+
+    console.log("rows", rows);
+    if (rows.length === 0) {
+      return res.json({
+        success: true,
+        templates: [],
+        message: "Nenhum template encontrado.",
+      });
+    }
+    return res.json({
+      success: true,
+      templates: rows,
+      message: "Templates de etiqueta listados com sucesso.",
+    });
+  } catch (err) {
+    if (connection) {
+      await connection.rollback();
+    }
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // Listar todos os templates de etiqueta
 const listEtiquetaTemplates = async (req, res) => {
   try {
     const [rows] = await pool.query(
-      "SELECT * FROM etiqueta_configuracoes ORDER BY nome ASC"
+      "SELECT * FROM etiqueta_configuracoes WHERE id_loja = ?",
+      [req.user.id_loja]
     );
-    return res.json({ success: true, templates: rows });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
+    return res.json({
+      success: true,
+      templates: rows,
+      message: "Templates de etiqueta listados com sucesso.",
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -103,5 +140,6 @@ module.exports = {
   getEtiquetaConfig,
   saveEtiquetaConfig,
   updateEtiquetaConfig,
+  listDefaultEtiquetaTemplates,
   listEtiquetaTemplates,
 };

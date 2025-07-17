@@ -25,32 +25,27 @@ export function LabelConfigDialog({
   templates,
 }) {
   const [template, setTemplate] = useState({
-    id: "standard" || currentTemplate.id,
-    nome: "Padrão" || currentTemplate.nome,
-    largura: 140 || currentTemplate.width,
-    altura: 100 || currentTemplate.height,
-    showComparison: true || currentTemplate.showComparison,
-    showICMS: true || currentTemplate.showICMS,
-    showBarcode: true || currentTemplate.showBarcode,
-    fontSize: {
-      name: 12 || currentTemplate.fontSize.name,
-      price: 18 || currentTemplate.fontSize.price,
-      comparison: 10 || currentTemplate.fontSize.comparison,
-      barcode: 8 || currentTemplate.fontSize.barcode,
-    },
-    colors: {
-      background: "#ffffff" || currentTemplate.colors.background,
-      text: "#000000" || currentTemplate.colors.text,
-      price: "#16a34a" || currentTemplate.colors.price,
-      comparison: "#2563eb" || currentTemplate.colors.comparison,
-    },
+    nome: currentTemplate?.nome ?? "Padrão",
+    largura: currentTemplate?.largura ?? 140,
+    altura: currentTemplate?.altura ?? 100,
+    mostrar_comparacao: currentTemplate?.mostrar_comparacao ?? true,
+    mostrar_icms: currentTemplate?.mostrar_icms ?? true,
+    mostrar_codigo_de_barra: currentTemplate?.mostrar_codigo_de_barra ?? true,
+    fonte_nome: currentTemplate?.fontSize?.name ?? 12,
+    fonte_preco: currentTemplate?.fontSize?.price ?? 18,
+    fonte_comparacao: currentTemplate?.fontSize?.comparison ?? 10,
+    fonte_barcode: currentTemplate?.fontSize?.barcode ?? 8,
+    cor_fundo: currentTemplate?.colors?.background ?? "#ffffff",
+    cor_texto: currentTemplate?.colors?.text ?? "#000000",
+    cor_preco: currentTemplate?.colors?.price ?? "#16a34a",
+    cor_comparacao: currentTemplate?.colors?.comparison ?? "#2563eb",
   });
   const [defaultTemplates, setDefaultTemplates] = useState([]);
   const [selectedPreset, setSelectedPreset] = useState("");
   const barcodeRef = useRef();
 
   useEffect(() => {
-    if (template.showCodebar && barcodeRef.current) {
+    if (template.mostrar_codigo_de_barra && barcodeRef.current) {
       JsBarcode(barcodeRef.current, "7894900011517", {
         format: "CODE128",
         width: 2,
@@ -58,29 +53,21 @@ export function LabelConfigDialog({
         displayValue: false,
       });
     }
-  }, [template.showCodebar]);
+  }, [template.mostrar_codigo_de_barra]);
 
   // Buscar templates de etiqueta do backend ao abrir o diálogo
   useEffect(() => {
     async function fetchTemplates() {
       try {
-        const response = await etiquetaService.listTemplates();
-        if (response.success && response.templates) {
-          // Se a prop templates não foi passada, armazene localmente
-          if (!templates) {
-            setDefaultTemplates(response.templates);
-          }
-        }
+        const defaultTemplates = await etiquetaService.listDefaultTemplates();
+        console.log("defaultTemplates", defaultTemplates);
+        setDefaultTemplates(defaultTemplates);
       } catch (err) {
-        // Opcional: lidar com erro
-        // alert("Erro ao buscar templates de etiqueta");
+        console.error("Erro ao buscar templates de etiqueta:", err);
       }
     }
-    // Só busca se não veio por props
-    if (!templates) {
-      fetchTemplates();
-    }
-  }, [open, templates]);
+    fetchTemplates();
+  }, [open]);
 
   const handleSave = () => {
     onSave(template);
@@ -166,18 +153,18 @@ export function LabelConfigDialog({
                 Templates Predefinidos
               </h3>
               <div className="grid grid-cols-1 gap-2">
-                {defaultTemplates.map((preset) => (
+                {defaultTemplates.map((template) => (
                   <Button
-                    key={preset.id}
+                    key={template.id}
                     variant={
-                      selectedPreset === preset.id ? "default" : "outline"
+                      selectedPreset === template.id ? "default" : "outline"
                     }
-                    onClick={() => loadPreset(preset)}
+                    onClick={() => loadPreset(template)}
                     className="justify-start"
                   >
-                    {preset.nome}
+                    {template.nome}
                     <Badge variant="secondary" className="ml-2">
-                      {preset.width}×{preset.height}mm
+                      {template.largura}×{template.altura}mm
                     </Badge>
                   </Button>
                 ))}
@@ -227,9 +214,9 @@ export function LabelConfigDialog({
                   <input
                     type="checkbox"
                     id="showComparison"
-                    checked={template.showComparison}
+                    checked={template.mostrar_comparacao}
                     onChange={(e) =>
-                      updateTemplate({ showComparison: e.target.checked })
+                      updateTemplate({ mostrar_comparacao: e.target.checked })
                     }
                   />
                   <Label htmlFor="showComparison">
@@ -241,9 +228,9 @@ export function LabelConfigDialog({
                   <input
                     type="checkbox"
                     id="showICMS"
-                    checked={template.showICMS}
+                    checked={template.mostrar_icms}
                     onChange={(e) =>
-                      updateTemplate({ showICMS: e.target.checked })
+                      updateTemplate({ mostrar_icms: e.target.checked })
                     }
                   />
                   <Label htmlFor="showICMS">Mostrar ICMS</Label>
@@ -252,9 +239,11 @@ export function LabelConfigDialog({
                   <input
                     type="checkbox"
                     id="showCodebar"
-                    checked={template.showCodebar}
+                    checked={template.mostrar_codigo_de_barra}
                     onChange={(e) =>
-                      updateTemplate({ showCodebar: e.target.checked })
+                      updateTemplate({
+                        mostrar_codigo_de_barra: e.target.checked,
+                      })
                     }
                   />
                   <Label htmlFor="showICMS">Mostrar Barra de código</Label>
@@ -263,9 +252,11 @@ export function LabelConfigDialog({
                   <input
                     type="checkbox"
                     id="showBarcode"
-                    checked={template.showBarcode}
+                    checked={template.mostrar_codigo_de_barra}
                     onChange={(e) =>
-                      updateTemplate({ showBarcode: e.target.checked })
+                      updateTemplate({
+                        mostrar_codigo_de_barra: e.target.checked,
+                      })
                     }
                   />
                   <Label htmlFor="showBarcode">Mostrar código de barras</Label>
@@ -284,9 +275,9 @@ export function LabelConfigDialog({
                     type="number"
                     min="8"
                     max="24"
-                    value={template.fontSize.name}
+                    value={template.fonte_nome}
                     onChange={(e) =>
-                      updateFontSize("name", Number(e.target.value))
+                      updateFontSize("fonte_nome", Number(e.target.value))
                     }
                   />
                 </div>
@@ -297,9 +288,9 @@ export function LabelConfigDialog({
                     type="number"
                     min="12"
                     max="32"
-                    value={template.fontSize.price}
+                    value={template.fonte_preco}
                     onChange={(e) =>
-                      updateFontSize("price", Number(e.target.value))
+                      updateFontSize("fonte_preco", Number(e.target.value))
                     }
                   />
                 </div>
@@ -310,9 +301,9 @@ export function LabelConfigDialog({
                     type="number"
                     min="6"
                     max="16"
-                    value={template.fontSize.comparison}
+                    value={template.fonte_comparacao}
                     onChange={(e) =>
-                      updateFontSize("comparison", Number(e.target.value))
+                      updateFontSize("fonte_comparacao", Number(e.target.value))
                     }
                   />
                 </div>
@@ -323,9 +314,9 @@ export function LabelConfigDialog({
                     type="number"
                     min="6"
                     max="12"
-                    value={template.fontSize.barcode}
+                    value={template.fonte_barcode}
                     onChange={(e) =>
-                      updateFontSize("barcode", Number(e.target.value))
+                      updateFontSize("fonte_barcode", Number(e.target.value))
                     }
                   />
                 </div>
@@ -345,16 +336,16 @@ export function LabelConfigDialog({
                     <Input
                       id="colorBg"
                       type="color"
-                      value={template.colors.background}
+                      value={template.cor_fundo}
                       onChange={(e) =>
-                        updateColors("background", e.target.value)
+                        updateColors("cor_fundo", e.target.value)
                       }
                       className="w-16 h-10 p-1"
                     />
                     <Input
-                      value={template.colors.background}
+                      value={template.cor_fundo}
                       onChange={(e) =>
-                        updateColors("background", e.target.value)
+                        updateColors("cor_fundo", e.target.value)
                       }
                       placeholder="#ffffff"
                       className="flex-1"
@@ -367,13 +358,17 @@ export function LabelConfigDialog({
                     <Input
                       id="colorText"
                       type="color"
-                      value={template.colors.text}
-                      onChange={(e) => updateColors("text", e.target.value)}
+                      value={template.cor_texto}
+                      onChange={(e) =>
+                        updateColors("cor_texto", e.target.value)
+                      }
                       className="w-16 h-10 p-1"
                     />
                     <Input
-                      value={template.colors.text}
-                      onChange={(e) => updateColors("text", e.target.value)}
+                      value={template.cor_texto}
+                      onChange={(e) =>
+                        updateColors("cor_texto", e.target.value)
+                      }
                       placeholder="#000000"
                       className="flex-1"
                     />
@@ -385,13 +380,17 @@ export function LabelConfigDialog({
                     <Input
                       id="colorPrice"
                       type="color"
-                      value={template.colors.price}
-                      onChange={(e) => updateColors("price", e.target.value)}
+                      value={template.cor_preco}
+                      onChange={(e) =>
+                        updateColors("cor_preco", e.target.value)
+                      }
                       className="w-16 h-10 p-1"
                     />
                     <Input
-                      value={template.colors.price}
-                      onChange={(e) => updateColors("price", e.target.value)}
+                      value={template.cor_preco}
+                      onChange={(e) =>
+                        updateColors("cor_preco", e.target.value)
+                      }
                       placeholder="#16a34a"
                       className="flex-1"
                     />
@@ -403,16 +402,16 @@ export function LabelConfigDialog({
                     <Input
                       id="colorComparison"
                       type="color"
-                      value={template.colors.comparison}
+                      value={template.cor_comparacao}
                       onChange={(e) =>
-                        updateColors("comparison", e.target.value)
+                        updateColors("cor_comparacao", e.target.value)
                       }
                       className="w-16 h-10 p-1"
                     />
                     <Input
-                      value={template.colors.comparison}
+                      value={template.cor_comparacao}
                       onChange={(e) =>
-                        updateColors("comparison", e.target.value)
+                        updateColors("cor_comparacao", e.target.value)
                       }
                       placeholder="#2563eb"
                       className="flex-1"
@@ -434,55 +433,55 @@ export function LabelConfigDialog({
               <div
                 className="border-2 border-dashed border-gray-300 p-4 text-center"
                 style={{
-                  width: `${template.width * 2}px`,
-                  height: `${template.height * 2.2}px`,
-                  backgroundColor: template.colors.background,
-                  color: template.colors.text,
+                  width: `${template.largura * 2}px`,
+                  height: `${template.altura * 2.2}px`,
+                  backgroundColor: template.cor_fundo,
+                  color: template.cor_texto,
                 }}
               >
                 <div
                   className="font-bold truncate mb-2"
-                  style={{ fontSize: `${template.fontSize.name}px` }}
+                  style={{ fontSize: `${template.fonte_nome}px` }}
                 >
                   Coca-Cola 350ml
                 </div>
                 <div
                   className="font-bold mb-1"
                   style={{
-                    fontSize: `${template.fontSize.price}px`,
-                    color: template.colors.price,
+                    fontSize: `${template.fonte_preco}px`,
+                    color: template.cor_preco,
                   }}
                 >
                   R$ 4,50
                 </div>
-                {template.showComparison && (
+                {template.mostrar_comparacao && (
                   <div
                     className="font-semibold mb-1"
                     style={{
-                      fontSize: `${template.fontSize.comparison}px`,
-                      color: template.colors.comparison,
+                      fontSize: `${template.fonte_comparacao}px`,
+                      color: template.cor_comparacao,
                     }}
                   >
                     R$ 12,86/l
                   </div>
                 )}
-                {template.showICMS && (
+                {template.mostrar_icms && (
                   <div
                     className="text-gray-500 mb-1"
-                    style={{ fontSize: `${template.fontSize.comparison}px` }}
+                    style={{ fontSize: `${template.fonte_comparacao}px` }}
                   >
                     ICMS 18%
                   </div>
                 )}
-                {template.showBarcode && (
+                {template.mostrar_codigo_de_barra && (
                   <div
                     className="font-mono"
-                    style={{ fontSize: `${template.fontSize.barcode}px` }}
+                    style={{ fontSize: `${template.fonte_barcode}px` }}
                   >
                     7894900011517
                   </div>
                 )}
-                {template.showCodebar && (
+                {template.mostrar_codigo_de_barra && (
                   <div className="flex justify-center mt-2">
                     <svg
                       ref={barcodeRef}
@@ -499,27 +498,27 @@ export function LabelConfigDialog({
             </div>
 
             <div className="text-sm text-gray-500 text-center">
-              Tamanho real: {template.width}mm × {template.height}mm
+              Tamanho real: {template.largura}mm × {template.altura}mm
             </div>
 
             <div className="bg-gray-50 p-3 rounded text-xs">
               <strong>Especificações:</strong>
               <ul className="mt-2 space-y-1">
                 <li>
-                  • Dimensões: {template.width} × {template.height} mm
+                  • Dimensões: {template.largura} × {template.altura} mm
                 </li>
                 <li>
                   • Elementos:{" "}
                   {[
-                    template.showComparison && "Comparação",
-                    template.showICMS && "ICMS",
-                    template.showBarcode && "Código",
-                    template.showCodebar && "Barra de código",
+                    template.mostrar_comparacao && "Comparação",
+                    template.mostrar_icms && "ICMS",
+                    template.mostrar_codigo_de_barra && "Código",
+                    template.mostrar_codigo_de_barra && "Barra de código",
                   ]
                     .filter(Boolean)
                     .join(", ") || "Básicos"}
                 </li>
-                <li>• Fonte do preço: {template.fontSize.price}px</li>
+                <li>• Fonte do preço: {template.fonte_preco}px</li>
               </ul>
             </div>
 

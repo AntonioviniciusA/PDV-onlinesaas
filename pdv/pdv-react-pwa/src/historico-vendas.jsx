@@ -35,6 +35,8 @@ import {
 } from "lucide-react";
 import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 import { KeyboardShortcutsHelp } from "./components/keyboard-shortcuts-help";
+import { BtnVoltarPDV } from "./components/BtnVoltarPDV.jsx";
+import { useNavigate } from "react-router-dom";
 
 // Dados de exemplo das vendas
 const salesData = [
@@ -111,7 +113,8 @@ const salesData = [
   },
 ];
 
-export default function HistoricoVendas({ onBack }) {
+export default function HistoricoVendas() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("todos");
@@ -121,7 +124,7 @@ export default function HistoricoVendas({ onBack }) {
   const shortcuts = useKeyboardShortcuts([
     {
       key: "Escape",
-      action: onBack,
+      action: () => navigate("/pdv"),
       description: "Voltar ao PDV",
     },
     {
@@ -199,10 +202,7 @@ export default function HistoricoVendas({ onBack }) {
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6 flex items-center gap-4">
-          <Button onClick={onBack} variant="outline" size="sm">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Voltar (ESC)
-          </Button>
+          <BtnVoltarPDV />
           <div className="flex-1">
             <h1 className="text-3xl font-bold text-gray-900">
               Histórico de Vendas

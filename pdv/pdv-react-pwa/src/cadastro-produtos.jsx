@@ -7,6 +7,7 @@ import { Separator } from "./components/ui/separator";
 import { ScrollArea } from "./components/ui/scroll-area";
 import { Badge } from "./components/ui/badge";
 import { Alert, AlertDescription } from "./components/ui/alert";
+import { BtnVoltarPDV } from "./components/BtnVoltarPDV.jsx";
 import {
   Dialog,
   DialogContent,
@@ -30,11 +31,7 @@ import {
 import { CSVImportDialog } from "./components/csv-import-dialog";
 import { calculateComparativePrice } from "./components/unit-converter";
 
-export default function CadastroProdutos({
-  onBack,
-  products = [],
-  onUpdateProducts,
-}) {
+export default function CadastroProdutos({ products = [], onUpdateProducts }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [editingProduct, setEditingProduct] = useState(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -229,10 +226,7 @@ export default function CadastroProdutos({
       <div className="flex-shrink-0 p-4 border-b bg-white">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button onClick={onBack} variant="outline" size="sm">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Voltar
-            </Button>
+            <BtnVoltarPDV />
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
                 Cadastro de Produtos

@@ -34,31 +34,21 @@ export default function PdvNav({
         </div>
         <div className="flex gap-2">
           <KeyboardShortcutsHelp shortcuts={shortcuts} />
-          {hasPermission("labels", "config") && (
-            <Button
-              onClick={() => setShowLabelConfig(true)}
-              variant="outline"
-              size="sm"
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              <span className="hidden sm:inline">Config. Etiquetas</span>
-            </Button>
-          )}
-          {hasPermission("cash", "manage") && (
-            <Button
-              onClick={() => {
-                setCashAction(cashSession ? "close" : "open");
-                setShowCashManagement(true);
-              }}
-              variant="outline"
-              size="sm"
-            >
-              <DollarSign className="w-4 h-4 mr-2" />
-              <span className="hidden sm:inline">
-                {cashSession ? "Fechar Caixa" : "Abrir Caixa"}
-              </span>
-            </Button>
-          )}
+
+          <Button
+            onClick={() => {
+              setCashAction(cashSession ? "close" : "open");
+              setShowCashManagement(true);
+            }}
+            variant="outline"
+            size="sm"
+          >
+            <DollarSign className="w-4 h-4 mr-2" />
+            <span className="hidden sm:inline">
+              {cashSession ? "Fechar Caixa" : "Abrir Caixa"}
+            </span>
+          </Button>
+
           <Button
             onClick={() => navigate("/produtos")}
             variant="outline"
