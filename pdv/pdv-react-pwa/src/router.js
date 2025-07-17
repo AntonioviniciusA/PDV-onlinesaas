@@ -8,6 +8,7 @@ import Produtos from "./Produtos";
 import Etiquetas from "./Etiquetas";
 import Historico from "./Historico";
 import PrivateRoute from "./utils/privateRoute";
+import PdvProtectedRoute from "./utils/pdvProtectedRoute";
 export default function Router() {
   return (
     <Routes>
@@ -16,7 +17,9 @@ export default function Router() {
         path="/pdv"
         element={
           <PrivateRoute>
-            <PDVCaixa />
+            <PdvProtectedRoute requiredPermissions={["pdv.operate"]}>
+              <PDVCaixa />
+            </PdvProtectedRoute>
           </PrivateRoute>
         }
       />
@@ -24,7 +27,9 @@ export default function Router() {
         path="/usuarios"
         element={
           <PrivateRoute>
-            <LocalUsers />
+            <PdvProtectedRoute requiredPermissions={["*", "admin"]}>
+              <LocalUsers />
+            </PdvProtectedRoute>
           </PrivateRoute>
         }
       />
@@ -32,7 +37,11 @@ export default function Router() {
         path="/clientes"
         element={
           <PrivateRoute>
-            <Clientes />
+            <PdvProtectedRoute
+              requiredPermissions={["pdv.operate", "pdv.authorize"]}
+            >
+              <Clientes />
+            </PdvProtectedRoute>
           </PrivateRoute>
         }
       />
@@ -40,7 +49,9 @@ export default function Router() {
         path="/produtos"
         element={
           <PrivateRoute>
-            <Produtos />
+            <PdvProtectedRoute requiredPermissions={["products.manage"]}>
+              <Produtos />
+            </PdvProtectedRoute>
           </PrivateRoute>
         }
       />
@@ -48,7 +59,9 @@ export default function Router() {
         path="/etiquetas"
         element={
           <PrivateRoute>
-            <Etiquetas />
+            <PdvProtectedRoute requiredPermissions={["labels.config"]}>
+              <Etiquetas />
+            </PdvProtectedRoute>
           </PrivateRoute>
         }
       />
@@ -56,7 +69,9 @@ export default function Router() {
         path="/historico"
         element={
           <PrivateRoute>
-            <Historico />
+            <PdvProtectedRoute requiredPermissions={["reports.view"]}>
+              <Historico />
+            </PdvProtectedRoute>
           </PrivateRoute>
         }
       />

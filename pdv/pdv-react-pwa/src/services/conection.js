@@ -1,21 +1,21 @@
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 export const apiNoAuth = axios.create({
-  baseURL: `${process.env.URL_API_PDV}/local`,
+  baseURL: `${process.env.REACT_APP_URL_API_PDV}/local`,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
 export const apiAuth = axios.create({
-  baseURL: `${process.env.URL_API_PDV}/local`,
+  baseURL: `${process.env.REACT_APP_URL_API_PDV}/local`,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
 export const apiSaas = axios.create({
-  baseURL: `${process.env.URL_API_SAAS}/saas`,
+  baseURL: `${process.env.REACT_APP_URL_API_SAAS}/saas`,
   headers: {
     "Content-Type": "application/json",
   },
