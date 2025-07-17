@@ -6,7 +6,7 @@ const axios = require("axios");
 // Configuração da impressora (ajuste a interface conforme necessário)
 const printer = new ThermalPrinter({
   type: PrinterTypes.EPSON, // MP-4200 TH é compatível com EPSON ESC/POS
-  interface: "usb", // ou 'COM3', '/dev/usb/lp0', etc
+  interface: "/dev/usb/lp0", // ou 'COM3', '/dev/usb/lp0', etc
   characterSet: "PC860_PORTUGUESE",
   removeSpecialCharacters: false,
   lineCharacter: "=",
@@ -207,8 +207,58 @@ const imprimirCupomOffline = async (req, res) => {
 
 const imprimirReciboOffline = async (req, res) => {
   const recibo = req.body;
-  console.log(recibo);
-  return res.json({ success: true, message: "Recibo impresso com sucesso." });
+  try {
+    // Impressão (igual ao imprimirReciboThermal, mas sem salvar no banco)
+    printer.clear();
+    printer.alignCenter();
+    printer.println(`Recibo nº ${recibo.numero || "OFFLINE"}`);
+    printer.drawLine();
+    printer.alignLeft();
+    printer.println(`Cliente: ${recibo.cliente || "N/A"}`);
+    printer.println(
+      `Data: ${
+        recibo.timestamp
+          ? new Date(recibo.timestamp).toLocaleDateString("pt-BR")
+          : new Date().toLocaleDateString("pt-BR")
+      }`
+    );
+    printer.drawLine();
+    printer.println("Itens:");
+    if (Array.isArray(recibo.items)) {
+      for (const item of recibo.items) {
+        printer.println(
+          `${item.descricao} x${item.quantidade}  R$${
+            item.valor_unitario?.toFixed(2) ?? "0.00"
+          }`
+        );
+      }
+    }
+    printer.drawLine();
+    printer.bold(true);
+    printer.println(`Total: R$ ${recibo.total?.toFixed(2) ?? "0.00"}`);
+    printer.bold(false);
+    printer.drawLine();
+    printer.println("Obrigado pela preferência!");
+    printer.cut();
+    const isConnected = await printer.isPrinterConnected();
+    if (!isConnected) {
+      return res
+        .status(500)
+        .json({ success: false, message: "Impressora não conectada." });
+    }
+    await printer.execute();
+    return res.json({
+      success: true,
+      message: "Recibo impresso com sucesso (offline).",
+    });
+  } catch (err) {
+    console.error("Erro ao imprimir recibo offline:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Erro ao imprimir recibo offline.",
+      error: err.message,
+    });
+  }
 };
 
 module.exports = {

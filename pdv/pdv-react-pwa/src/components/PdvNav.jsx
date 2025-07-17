@@ -1,6 +1,6 @@
 import React from "react";
 import { Button } from "./ui/button";
-import { Settings, DollarSign, Package, Tag, History, X } from "lucide-react";
+import { DollarSign, Package, Tag, History, X } from "lucide-react";
 import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
 
 export default function PdvNav({
@@ -14,7 +14,7 @@ export default function PdvNav({
   onCloseNav,
 }) {
   return (
-    <div className="flex-shrink-0 p-4 border-b bg-white relative">
+    <div className="flex-shrink-0 p-4 border-b bg-black relative">
       {/* Botão para fechar o nav */}
       {onCloseNav && (
         <button
@@ -27,10 +27,10 @@ export default function PdvNav({
       )}
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+          <h1 className="text-2xl md:text-3xl font-bold text-white">
             Sistema PDV - Caixa
           </h1>
-          <p className="text-sm text-gray-600">Ponto de Venda</p>
+          <p className="text-sm text-white">Ponto de Venda</p>
         </div>
         <div className="flex gap-2">
           <KeyboardShortcutsHelp shortcuts={shortcuts} />

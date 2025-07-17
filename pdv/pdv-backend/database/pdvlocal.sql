@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
   `criado_em` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `atualizado_em` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+-- Inserir usuário administrador padrão
 INSERT INTO users (
   id_loja,
   nome,
@@ -36,6 +37,104 @@ SELECT * FROM (
 WHERE NOT EXISTS (
   SELECT 1 FROM users WHERE email = 'admin@dominio.com'
 );
+
+-- Inserir usuário João Silva (caixa)
+INSERT INTO users (
+  id_loja,
+  nome,
+  email,
+  senha,
+  perfil,
+  permissions,
+  ativo
+)
+SELECT * FROM (
+  SELECT
+    '00000000-0000-0000-0000-000000000000' AS id_loja,
+    'João Silva' AS nome,
+    'joao.caixa@dominio.com' AS email,
+    '$2a$10$yjkeg.NF9hK0sxQ/P5CLo.LdhE9B3U1fwXTOLYlB7VrKgN/lccgvi' AS senha,
+    'operador' AS perfil,
+    '["pdv.operate"]' AS permissions,
+    1 AS ativo
+) AS tmp
+WHERE NOT EXISTS (
+  SELECT 1 FROM users WHERE email = 'joao.caixa@dominio.com'
+);
+
+-- Inserir usuário Maria Santos (fiscal)
+INSERT INTO users (
+  id_loja,
+  nome,
+  email,
+  senha,
+  perfil,
+  permissions,
+  ativo
+)
+SELECT * FROM (
+  SELECT
+    '00000000-0000-0000-0000-000000000000' AS id_loja,
+    'Maria Santos' AS nome,
+    'maria.fiscal@dominio.com' AS email,
+    '$2a$10$yjkeg.NF9hK0sxQ/P5CLo.LdhE9B3U1fwXTOLYlB7VrKgN/lccgvi' AS senha,
+    'operador' AS perfil,
+    '["pdv.operate","pdv.authorize","reports.view"]' AS permissions,
+    1 AS ativo
+) AS tmp
+WHERE NOT EXISTS (
+  SELECT 1 FROM users WHERE email = 'maria.fiscal@dominio.com'
+);
+
+-- Inserir usuário Carlos Oliveira (supervisor)
+INSERT INTO users (
+  id_loja,
+  nome,
+  email,
+  senha,
+  perfil,
+  permissions,
+  ativo
+)
+SELECT * FROM (
+  SELECT
+    '00000000-0000-0000-0000-000000000000' AS id_loja,
+    'Carlos Oliveira' AS nome,
+    'carlos.supervisor@dominio.com' AS email,
+    '$2a$10$yjkeg.NF9hK0sxQ/P5CLo.LdhE9B3U1fwXTOLYlB7VrKgN/lccgvi' AS senha,
+    'gerente' AS perfil,
+    '["pdv.operate","pdv.authorize","products.view","reports.view","cash.manage"]' AS permissions,
+    1 AS ativo
+) AS tmp
+WHERE NOT EXISTS (
+  SELECT 1 FROM users WHERE email = 'carlos.supervisor@dominio.com'
+);
+
+-- Inserir usuário Ana Costa (gerente)
+INSERT INTO users (
+  id_loja,
+  nome,
+  email,
+  senha,
+  perfil,
+  permissions,
+  ativo
+)
+SELECT * FROM (
+  SELECT
+    '00000000-0000-0000-0000-000000000000' AS id_loja,
+    'Ana Costa' AS nome,
+    'ana.gerente@dominio.com' AS email,
+    '$2a$10$yjkeg.NF9hK0sxQ/P5CLo.LdhE9B3U1fwXTOLYlB7VrKgN/lccgvi' AS senha,
+    'gerente' AS perfil,
+    '["pdv.operate","pdv.authorize","products.manage","reports.manage","cash.manage","labels.config"]' AS permissions,
+    1 AS ativo
+) AS tmp
+WHERE NOT EXISTS (
+  SELECT 1 FROM users WHERE email = 'ana.gerente@dominio.com'
+);
+
+-- Usuários adicionados conforme user.js
 
 CREATE TABLE IF NOT EXISTS configuracao (
     `id` int AUTO_INCREMENT NOT NULL,

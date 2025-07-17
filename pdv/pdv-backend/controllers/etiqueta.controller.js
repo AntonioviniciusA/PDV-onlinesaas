@@ -136,10 +136,76 @@ const listEtiquetaTemplates = async (req, res) => {
   }
 };
 
+const printer = require("printer");
+
+const imprimirEtiqueta = async (req, res) => {
+  try {
+    const { idConfigEtiqueta } = req.body;
+    const { id_produto } = req.body;
+    const { id_loja } = req.user;
+
+    const [rows] = await pool.query(
+      "SELECT * FROM etiqueta_configuracoes WHERE id = ?",
+      [idConfigEtiqueta]
+    );
+    if (rows.length === 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Etiqueta não encontrada." });
+    }
+
+    const etiqueta = rows[0];
+
+    const [produto] = await pool.query(
+      "SELECT * FROM produtos WHERE id = ? AND id_loja = ?",
+      [id_produto, id_loja]
+    );
+    if (produto.length === 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Produto não encontrado." });
+    }
+
+    const { nome: nome_produto, codigo, preco, icms } = produto[0];
+
+    // Gerar o código ZPL
+    const zpl = `
+^XA
+^CF0,30
+^FO50,30^FD${nome_produto}^FS
+^CF0,25
+^FO50,70^FDPreço: R$ ${preco.toFixed(2)}^FS
+${etiqueta.mostrar_icms ? `^FO50,110^FDICMS: ${icms}%^FS` : ""}
+${
+  etiqueta.mostrar_codigo_de_barra
+    ? `^FO50,150^BCN,100,Y,N,N^FD${codigo}^FS`
+    : ""
+}
+^XZ
+    `.trim();
+
+    // Enviar para impressora local Zebra GC420T
+    printer.printDirect({
+      data: zpl,
+      printer: "Zebra GC420t", // nome da impressora instalada no Windows/Linux
+      type: "RAW",
+      success: function (jobID) {
+        res.json({ success: true, jobID });
+      },
+      error: function (err) {
+        res.status(500).json({ success: false, message: err.message });
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getEtiquetaConfig,
   saveEtiquetaConfig,
   updateEtiquetaConfig,
   listDefaultEtiquetaTemplates,
   listEtiquetaTemplates,
+  imprimirEtiqueta,
 };

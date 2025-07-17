@@ -804,7 +804,7 @@ export default function PDVCaixa() {
           onClick={() => setShowNav(true)}
           title="Abrir menu"
         >
-          <Menu className="w-6 h-6 text-gray-700" />
+          <Menu className="w-6 h-6 text-black" />
         </button>
       )}
       {/* Nav principal */}
