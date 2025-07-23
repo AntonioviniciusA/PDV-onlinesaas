@@ -115,8 +115,10 @@ const loginSaas = async (req, res) => {
 // Novo endpoint para retornar o usuário autenticado do SaaS
 const meSaas = async (req, res) => {
   const cookies = req.cookies || {};
-  const token = cookies.t;
+  const token = cookies.token_saas;
   const tipo = cookies.saasTipo;
+  console.log("meSaas cookies", cookies);
+  console.log("meSaas token", token);
   if (!token) {
     return res.status(401).json({ success: false, message: "Não autenticado" });
   }
@@ -131,11 +133,12 @@ const meSaas = async (req, res) => {
       },
     });
     console.log("resposta meSaas", resposta.data);
-    if (resposta.data && resposta.data.user) {
-      return res.json({ success: true, user: resposta.data.user });
-    } else {
-      return res.json({ success: false, message: resposta.data.message });
+    if (!resposta.data || !resposta.data.user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Usuário não encontrado" });
     }
+    return res.json({ success: true, user: resposta.data.user });
   } catch (error) {
     return res.status(401).json({ success: false, message: "Token inválido" });
   }
