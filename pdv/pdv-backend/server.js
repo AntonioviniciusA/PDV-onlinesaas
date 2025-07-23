@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
+const cookieParser = require("cookie-parser"); // Adicionado cookie-parser
 require("dotenv").config();
 
 const {
@@ -46,6 +47,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+app.use(cookieParser()); // Usar cookie-parser logo após o CORS
 
 // Rate Limiting
 const limiter = rateLimit({
@@ -62,29 +64,40 @@ app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
+// app.use(express.static(path.join(__dirname, "client/build")));
+
+// // Rota fallback para React (SPA)
+// // app.get("*", (req, res) => {
+// //   res.sendFile(path.join(__dirname, "client/build", "index.html"));
+// // });
 
 // Rotas
 app.use("/local", require("./routers/router.js"));
 
-// Inicializar servidor
-const startServer = async () => {
-  try {
-    await generateDatabase();
-    await testConnection();
-    await sincronizarProdutos();
-    await sincronizarCupons();
-    await sincronizarRecibos();
-    await sincronizarVendas();
+// app.get("*", (req, res) => {
+//   res.sendFile(path.join(__dirname, "client/build", "index.html"));
+// });
+if (process.env.NODE_ENV !== "test") {
+  const startServer = async () => {
+    try {
+      await generateDatabase();
+      await testConnection();
+      // await sincronizarProdutos();
+      // await sincronizarCupons();
+      // await sincronizarRecibos();
+      // await sincronizarVendas();
 
-    app.listen(PORT, () => {
-      console.log(
-        `\u2728 PDV rodando em ${process.env.PDV_URL}:${process.env.PORT}`
-      );
-    });
-  } catch (error) {
-    console.error("Erro na inicialização:", error);
-    process.exit(1);
-  }
-};
+      app.listen(PORT, () => {
+        console.log(
+          `\u2728 PDV rodando em ${process.env.PDV_URL}:${process.env.PORT}`
+        );
+      });
+    } catch (error) {
+      console.error("Erro na inicialização:", error);
+      process.exit(1);
+    }
+  };
+  startServer();
+}
 
-startServer();
+module.exports = app;

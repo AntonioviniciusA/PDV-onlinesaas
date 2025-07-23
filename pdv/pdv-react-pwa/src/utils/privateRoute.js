@@ -4,17 +4,12 @@ import { AuthService } from "../services/authServices";
 
 export default function PrivateRoute({ children }) {
   const [loading, setLoading] = useState(true);
-  const [hasToken, setHasToken] = useState(false);
   const [isAuth, setIsAuth] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
-      const token = await AuthService.getTokenSaas();
-      setHasToken(!!token);
-      if (token) {
-        const valid = await AuthService.isAuthenticatedSaas();
-        setIsAuth(!!valid);
-      }
+      const valid = await AuthService.isAuthenticatedSaas();
+      setIsAuth(!!valid);
       setLoading(false);
     };
     checkAuth();
@@ -22,9 +17,9 @@ export default function PrivateRoute({ children }) {
 
   if (loading) return null;
 
-  if (!hasToken || !isAuth) {
+  if (!isAuth) {
     return <Navigate to="/" replace />;
   }
 
-  return children;
+  return <>{children}</>;
 }

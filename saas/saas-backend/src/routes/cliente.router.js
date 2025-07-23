@@ -8,6 +8,7 @@ const {
   enviarCodigoVerificacao,
   verificarCodigo,
   verificarEmail,
+  me,
 } = require("../controllers/cliente.controller.js");
 const authMiddleware = require("../middlewares/auth.middleware.js");
 // Middleware de validação para registro e login de cliente
@@ -78,4 +79,5 @@ router.put("/profile", authMiddleware, updateProfile);
 router.post("/enviar-codigo", enviarCodigoVerificacao);
 router.post("/verificar-email", verificarEmail);
 router.post("/verificar-codigo", verificarCodigo);
+router.get("/me", authMiddleware, me);
 module.exports = router;

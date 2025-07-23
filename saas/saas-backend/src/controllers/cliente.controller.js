@@ -563,6 +563,35 @@ const verificarEmail = async (req, res) => {
   }
 };
 
+const me = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  console.log("authHeader", authHeader);
+  if (!authHeader) {
+    return res
+      .status(401)
+      .json({ success: false, message: "Token não fornecido" });
+  }
+  const token = authHeader.replace("Bearer ", "");
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("decoded", decoded);
+    // Exemplo: supondo que o payload tem um campo 'perfil' ou 'tipo'
+    let user = null;
+    user = decoded;
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Usuário não encontrado" });
+    }
+
+    // Retorne apenas os dados necessários
+    return res.json({ success: true, user });
+  } catch (error) {
+    return res.status(401).json({ success: false, message: "Token inválido" });
+  }
+};
+
 module.exports = {
   registerCliente,
   loginCliente,
@@ -571,4 +600,5 @@ module.exports = {
   enviarCodigoVerificacao,
   verificarCodigo,
   verificarEmail,
+  me,
 };

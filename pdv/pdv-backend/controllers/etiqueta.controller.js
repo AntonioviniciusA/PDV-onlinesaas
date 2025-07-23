@@ -1,5 +1,5 @@
 const { pool } = require("../config/database");
-
+const printer = require("printer-lp");
 // Carregar configuração de etiqueta (pega a mais recente)
 const getEtiquetaConfig = async (req, res) => {
   try {
@@ -136,12 +136,9 @@ const listEtiquetaTemplates = async (req, res) => {
   }
 };
 
-const printer = require("printer");
-
 const imprimirEtiqueta = async (req, res) => {
   try {
-    const { idConfigEtiqueta } = req.body;
-    const { id_produto } = req.body;
+    const { idConfigEtiqueta, id_produto } = req.body;
     const { id_loja } = req.user;
 
     const [rows] = await pool.query(
@@ -168,7 +165,6 @@ const imprimirEtiqueta = async (req, res) => {
 
     const { nome: nome_produto, codigo, preco, icms } = produto[0];
 
-    // Gerar o código ZPL
     const zpl = `
 ^XA
 ^CF0,30
@@ -184,20 +180,19 @@ ${
 ^XZ
     `.trim();
 
-    // Enviar para impressora local Zebra GC420T
-    printer.printDirect({
-      data: zpl,
-      printer: "Zebra GC420t", // nome da impressora instalada no Windows/Linux
-      type: "RAW",
-      success: function (jobID) {
-        res.json({ success: true, jobID });
-      },
-      error: function (err) {
-        res.status(500).json({ success: false, message: err.message });
-      },
+    const nomeImpressora =
+      process.platform === "win32"
+        ? "ZDesigner GC420t" // nome exato da impressora no Windows
+        : "Zebra_GC420t"; // nome exato no Linux (verifique com `lpstat -p`)
+
+    printer.printText(zpl, { printer: nomeImpressora }, (err, jobID) => {
+      if (err) {
+        return res.status(500).json({ success: false, message: err.message });
+      }
+      res.json({ success: true, jobID });
     });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 

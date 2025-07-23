@@ -3,20 +3,48 @@ const PrinterTypes = require("node-thermal-printer").types;
 const { pool } = require("../config/database");
 const axios = require("axios");
 
-// Configuração da impressora (ajuste a interface conforme necessário)
-const printer = new ThermalPrinter({
-  type: PrinterTypes.EPSON, // MP-4200 TH é compatível com EPSON ESC/POS
-  interface: "/dev/usb/lp0", // ou 'COM3', '/dev/usb/lp0', etc
-  characterSet: "PC860_PORTUGUESE",
-  removeSpecialCharacters: false,
-  lineCharacter: "=",
-});
+// Cache e função para buscar e recarregar o link da API do cupom
+global.apiCupomUrlCache = null;
+
+async function loadApiCupomUrl() {
+  const id_loja = "00000000-0000-0000-0000-000000000000"; // Ajuste conforme multi-loja
+  const [rows] = await pool.query(
+    "SELECT link_api_cupom FROM configuracoes_sistema WHERE id_loja = ? ORDER BY atualizado_em DESC LIMIT 1",
+    [id_loja]
+  );
+  if (!rows.length || !rows[0].link_api_cupom) {
+    throw new Error("Configuração de link_api_cupom não encontrada");
+  }
+  global.apiCupomUrlCache = rows[0].link_api_cupom;
+}
+
+function getApiCupomUrl() {
+  if (!global.apiCupomUrlCache) throw new Error("API Cupom URL não carregada");
+  return global.apiCupomUrlCache;
+}
+
+// Exporte a função para recarregar se necessário em outro lugar
+module.exports.loadApiCupomUrl = loadApiCupomUrl;
+
+// Configuração da impressora (agora dinâmica)
+async function createPrinter() {
+  const config = await getPrinterConfig();
+  return new ThermalPrinter({
+    type: PrinterTypes[config.type],
+    interface: config.interface,
+    characterSet: config.characterSet,
+    removeSpecialCharacters: !!config.removeSpecialCharacters,
+    lineCharacter: config.lineCharacter,
+  });
+}
 
 const imprimirCupomThermal = async (req, res) => {
   const cupom = req.body;
   try {
+    // Usar o valor em cache
+    const urlApiCupom = getApiCupomUrl();
     // Enviar cupom para API externa (ajuste a URL conforme necessário)
-    const apiResponse = await axios.post("http://sua-api-externa/cupom", cupom);
+    const apiResponse = await axios.post(urlApiCupom, cupom);
     // Salvar cupom na tabela cupom
     const connection = await pool.getConnection();
     try {
@@ -38,6 +66,7 @@ const imprimirCupomThermal = async (req, res) => {
       connection.release();
     }
     // Impressão
+    const printer = await createPrinter();
     printer.clear();
     printer.alignCenter();
     printer.println(`Recibo nº ${cupom.id || cupom.numero}`);
@@ -151,6 +180,7 @@ const imprimirReciboThermal = async (req, res) => {
       }
     }
     // Impressão (igual ao cupom, mas sem QR code)
+    const printer = await createPrinter();
     printer.clear();
     printer.alignCenter();
     printer.println(`Recibo nº ${numero}`);
@@ -207,12 +237,14 @@ const imprimirCupomOffline = async (req, res) => {
 
 const imprimirReciboOffline = async (req, res) => {
   const recibo = req.body;
+
   try {
-    // Impressão (igual ao imprimirReciboThermal, mas sem salvar no banco)
+    const printer = await createPrinter();
     printer.clear();
     printer.alignCenter();
     printer.println(`Recibo nº ${recibo.numero || "OFFLINE"}`);
     printer.drawLine();
+
     printer.alignLeft();
     printer.println(`Cliente: ${recibo.cliente || "N/A"}`);
     printer.println(
@@ -222,31 +254,38 @@ const imprimirReciboOffline = async (req, res) => {
           : new Date().toLocaleDateString("pt-BR")
       }`
     );
+
     printer.drawLine();
     printer.println("Itens:");
+
     if (Array.isArray(recibo.items)) {
       for (const item of recibo.items) {
-        printer.println(
-          `${item.descricao} x${item.quantidade}  R$${
-            item.valor_unitario?.toFixed(2) ?? "0.00"
-          }`
-        );
+        const descricao = item.descricao || "Item";
+        const quantidade = item.quantidade ?? 1;
+        const valor = Number(item.valor_unitario) || 0;
+
+        printer.println(`${descricao} x${quantidade}  R$${valor.toFixed(2)}`);
       }
     }
+
     printer.drawLine();
     printer.bold(true);
-    printer.println(`Total: R$ ${recibo.total?.toFixed(2) ?? "0.00"}`);
+    const total = Number(recibo.total) || 0;
+    printer.println(`Total: R$ ${total.toFixed(2)}`);
     printer.bold(false);
     printer.drawLine();
     printer.println("Obrigado pela preferência!");
     printer.cut();
-    const isConnected = await printer.isPrinterConnected();
+
+    await printer.execute(); // primeiro executa
+    const isConnected = await printer.isPrinterConnected(); // depois checa conexão
+
     if (!isConnected) {
       return res
         .status(500)
         .json({ success: false, message: "Impressora não conectada." });
     }
-    await printer.execute();
+
     return res.json({
       success: true,
       message: "Recibo impresso com sucesso (offline).",

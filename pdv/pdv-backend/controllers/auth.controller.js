@@ -3,50 +3,46 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 const login = async (req, res) => {
+  console.log("login");
   let connection;
   try {
     connection = await pool.getConnection();
     const { entrada } = req.body;
-    console.log("entrada", entrada);
     if (!entrada || !entrada.includes(".")) {
       return res.status(400).json({
         success: false,
         message: "Formato inválido: esperado 'id.senha'",
       });
     }
-
     const [id, senha] = entrada.split(".");
-    // console.log("id extraído:", id);
-    // console.log("senha extraída:", senha);
-    // console.log("comprimento da senha:", senha.length);
-    // console.log("senha com trim:", senha.trim());
-    // console.log("senha com trim length:", senha.trim().length);
-
     const [usersRows] = await connection.query(
       "SELECT * FROM users WHERE id = ?",
       [id]
     );
-    console.log("usersRows", usersRows);
-
     if (usersRows.length === 0) {
       return res
         .status(401)
         .json({ success: false, message: "Usuário não encontrado." });
     }
-
     const senhaValida = await bcrypt.compare(senha.trim(), usersRows[0].senha);
-    console.log("senhaValida", senhaValida);
-
     if (!senhaValida) {
       return res
         .status(401)
         .json({ success: false, message: "Senha incorreta." });
     }
-
+    // Padronizar permissions para array
+    let permissions = usersRows[0].permissions;
+    if (typeof permissions === "string") {
+      try {
+        permissions = JSON.parse(permissions);
+      } catch (e) {
+        permissions = [];
+      }
+    }
     const token = jwt.sign(
       {
         id: usersRows[0].id,
-        permissions: usersRows[0].permissions,
+        permissions: permissions,
         email: usersRows[0].email,
         nome: usersRows[0].nome,
         perfil: usersRows[0].perfil,
@@ -60,9 +56,13 @@ const login = async (req, res) => {
         expiresIn: "12h",
       }
     );
-
     connection.release();
-
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias
+    });
     return res.json({
       success: true,
       user: {
@@ -70,12 +70,10 @@ const login = async (req, res) => {
         nome: usersRows[0].nome,
         email: usersRows[0].email,
         perfil: usersRows[0].perfil,
-        permissions: usersRows[0].permissions,
+        permissions: permissions,
       },
-      token: token,
     });
   } catch (error) {
-    console.error("Erro no login:", error);
     if (connection) connection.release();
     return res
       .status(500)
@@ -83,6 +81,30 @@ const login = async (req, res) => {
   }
 };
 
+// Novo endpoint para retornar o usuário autenticado
+const me = (req, res) => {
+  console.log("me");
+  const cookies = req.cookies || {};
+  const token = cookies.token;
+  if (!token) {
+    return res.status(401).json({ success: false, message: "Não autenticado" });
+  }
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  const user = decoded;
+  if (!req.user) {
+    return res.status(401).json({ success: false, message: "Não autenticado" });
+  }
+  res.json({ user: req.user });
+};
+
+const logout = async (req, res) => {
+  console.log("logout");
+  res.clearCookie("token");
+  res.json({ success: true, message: "Logout realizado com sucesso." });
+};
+
 module.exports = {
   login,
+  me,
+  logout,
 };
