@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "../components/ui/button.jsx";
 import {
   Card,
@@ -35,8 +35,10 @@ import {
 } from "lucide-react";
 import { CSVImportDialog } from "../components/csv-import-dialog.jsx";
 import { calculateComparativePrice } from "../components/unit-converter.js";
+import { produtosServices } from "../services/produtosServices.js";
 
-export default function CadastroProdutos({ products = [], onUpdateProducts }) {
+export default function CadastroProdutos() {
+  const id_loja = "1"; // Ajuste conforme sua lógica de autenticação
   const [searchTerm, setSearchTerm] = useState("");
   const [editingProduct, setEditingProduct] = useState(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -82,6 +84,9 @@ export default function CadastroProdutos({ products = [], onUpdateProducts }) {
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState("");
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const searchInputRef = useRef(null);
 
@@ -100,11 +105,35 @@ export default function CadastroProdutos({ products = [], onUpdateProducts }) {
     "Higiene",
   ];
 
+  // Carregar produtos ao montar
+  useEffect(() => {
+    fetchProdutos();
+    // eslint-disable-next-line
+  }, []);
+
+  const fetchProdutos = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await produtosServices.getProdutos(id_loja);
+      setProducts(res.produtos || []);
+    } catch (err) {
+      setError("Erro ao carregar produtos");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Ajustar filteredProducts para usar o estado local
   const filteredProducts = products.filter(
     (product) =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.barcode.includes(searchTerm)
+      (product.descricao || product.name || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      (product.grupo || product.category || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      (product.codigo_barras || product.barcode || "").includes(searchTerm)
   );
 
   const validateForm = (data) => {
@@ -140,83 +169,67 @@ export default function CadastroProdutos({ products = [], onUpdateProducts }) {
     return newErrors;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const newErrors = validateForm(formData);
     setErrors(newErrors);
-
     if (Object.keys(newErrors).length > 0) return;
-
-    const productData = {
-      id: editingProduct?.id || Date.now().toString(),
-      name: formData.name.trim(),
-      price: Number(formData.price),
-      category: formData.category.trim(),
-      barcode: formData.barcode.trim(),
-      requiresWeight: formData.requiresWeight,
-      unit: formData.unit,
-      icms: formData.icms ? Number(formData.icms) : undefined,
-      quantity: formData.quantity ? Number(formData.quantity) : undefined,
-      measureUnit: formData.measureUnit || "un",
-
-      // Campos adicionais da tabela produto
-      codigo: formData.codigo.trim(),
-      codigo_barras: formData.codigo_barras.trim(),
-      descricao: formData.descricao.trim(),
-      grupo: formData.grupo.trim(),
-      ncm: formData.ncm.trim(),
-      preco_custo: formData.preco_custo
-        ? Number(formData.preco_custo)
-        : undefined,
-      margem_lucro: formData.margem_lucro
-        ? Number(formData.margem_lucro)
-        : undefined,
-      preco_venda: formData.preco_venda
-        ? Number(formData.preco_venda)
-        : undefined,
-      estoque_minimo: formData.estoque_minimo
-        ? Number(formData.estoque_minimo)
-        : undefined,
-      estoque_maximo: formData.estoque_maximo
-        ? Number(formData.estoque_maximo)
-        : undefined,
-      estoque_atual: formData.estoque_atual
-        ? Number(formData.estoque_atual)
-        : undefined,
-      unidade: formData.unidade,
-      controla_estoque: formData.controla_estoque,
-      cfop: formData.cfop.trim(),
-      csosn: formData.csosn.trim(),
-      cst: formData.cst.trim(),
-      ativo: formData.ativo,
-      exibir_tela: formData.exibir_tela,
-      solicita_quantidade: formData.solicita_quantidade,
-      permitir_combinacao: formData.permitir_combinacao,
-      cest: formData.cest.trim(),
-      cst_pis: formData.cst_pis.trim(),
-      pis: formData.pis ? Number(formData.pis) : undefined,
-      cst_cofins: formData.cst_cofins.trim(),
-      cofins: formData.cofins ? Number(formData.cofins) : undefined,
-    };
-
-    let updatedProducts;
-
-    if (editingProduct) {
-      // Editando produto existente
-      updatedProducts = products.map((p) =>
-        p.id === editingProduct.id ? productData : p
-      );
-      setSuccess("Produto atualizado com sucesso!");
-    } else {
-      // Adicionando novo produto
-      updatedProducts = [...products, productData];
-      setSuccess("Produto cadastrado com sucesso!");
+    setLoading(true);
+    setError("");
+    try {
+      const productData = {
+        id_loja,
+        codigo: formData.codigo.trim(),
+        codigo_barras: formData.codigo_barras.trim(),
+        descricao: formData.descricao.trim() || formData.name.trim(),
+        grupo: formData.grupo.trim(),
+        ncm: formData.ncm.trim(),
+        preco_custo: formData.preco_custo
+          ? Number(formData.preco_custo)
+          : undefined,
+        margem_lucro: formData.margem_lucro
+          ? Number(formData.margem_lucro)
+          : undefined,
+        preco_venda: formData.price ? Number(formData.price) : undefined,
+        estoque_minimo: formData.estoque_minimo
+          ? Number(formData.estoque_minimo)
+          : undefined,
+        estoque_maximo: formData.estoque_maximo
+          ? Number(formData.estoque_maximo)
+          : undefined,
+        estoque_atual: formData.estoque_atual
+          ? Number(formData.estoque_atual)
+          : undefined,
+        unidade: formData.unidade,
+        controla_estoque: formData.controla_estoque,
+        cfop: formData.cfop.trim(),
+        csosn: formData.csosn.trim(),
+        cst: formData.cst.trim(),
+        icms: formData.icms ? Number(formData.icms) : undefined,
+        ativo: formData.ativo,
+        exibir_tela: formData.exibir_tela,
+        solicita_quantidade: formData.solicita_quantidade,
+        permitir_combinacao: formData.permitir_combinacao,
+        cest: formData.cest.trim(),
+        cst_pis: formData.cst_pis.trim(),
+        pis: formData.pis ? Number(formData.pis) : undefined,
+        cst_cofins: formData.cst_cofins.trim(),
+        cofins: formData.cofins ? Number(formData.cofins) : undefined,
+      };
+      if (editingProduct) {
+        await produtosServices.updateProduto(editingProduct.id, productData);
+        setSuccess("Produto atualizado com sucesso!");
+      } else {
+        await produtosServices.createProduto(productData);
+        setSuccess("Produto cadastrado com sucesso!");
+      }
+      await fetchProdutos();
+      handleCancel();
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (err) {
+      setError("Erro ao salvar produto");
+    } finally {
+      setLoading(false);
     }
-
-    onUpdateProducts(updatedProducts);
-    handleCancel();
-
-    // Limpar mensagem de sucesso após 3 segundos
-    setTimeout(() => setSuccess(""), 3000);
   };
 
   const handleCancel = () => {
@@ -308,12 +321,24 @@ export default function CadastroProdutos({ products = [], onUpdateProducts }) {
     setShowAddDialog(true);
   };
 
-  const handleDelete = (product) => {
-    if (window.confirm(`Tem certeza que deseja excluir "${product.name}"?`)) {
-      const updatedProducts = products.filter((p) => p.id !== product.id);
-      onUpdateProducts(updatedProducts);
-      setSuccess("Produto excluído com sucesso!");
-      setTimeout(() => setSuccess(""), 3000);
+  const handleDelete = async (product) => {
+    if (
+      window.confirm(
+        `Tem certeza que deseja excluir "${product.descricao || product.name}"?`
+      )
+    ) {
+      setLoading(true);
+      setError("");
+      try {
+        await produtosServices.deleteProduto(product.id, id_loja);
+        setSuccess("Produto excluído com sucesso!");
+        await fetchProdutos();
+        setTimeout(() => setSuccess(""), 3000);
+      } catch (err) {
+        setError("Erro ao excluir produto");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -443,6 +468,10 @@ export default function CadastroProdutos({ products = [], onUpdateProducts }) {
             </CardHeader>
 
             <CardContent className="flex-1 overflow-hidden">
+              {loading && (
+                <div className="p-4 text-blue-600">Carregando...</div>
+              )}
+              {error && <div className="p-4 text-red-600">{error}</div>}
               <ScrollArea className="h-full">
                 {filteredProducts.length === 0 ? (
                   <div className="flex items-center justify-center h-64">
@@ -1223,7 +1252,7 @@ export default function CadastroProdutos({ products = [], onUpdateProducts }) {
         open={showImportDialog}
         onOpenChange={setShowImportDialog}
         products={products}
-        onImportComplete={onUpdateProducts}
+        onImportComplete={fetchProdutos}
       />
     </div>
   );

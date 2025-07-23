@@ -376,6 +376,62 @@ const verificaCaixaAberto = async (req, res) => {
     if (connection) connection.release();
   }
 };
+
+const getHistoricoCaixas = async (req, res) => {
+  let connection;
+  const { caixa } = req.body;
+  const { n_venda, data, forma_pagamento } = req.query; // Use req.query em vez de req.params
+
+  try {
+    connection = await pool.getConnection();
+
+    // Início da query base
+    let queryVendas = "SELECT * FROM vendas WHERE caixa_id = ? AND id_loja = ?";
+    let queryPagamentos =
+      "SELECT * FROM pagamentos WHERE caixa_id = ? AND id_loja = ?";
+
+    const valuesVendas = [caixa.id, caixa.id_loja];
+    const valuesPagamentos = [caixa.id, caixa.id_loja];
+
+    // Adiciona filtros dinamicamente
+    if (n_venda) {
+      queryVendas += " AND n_venda = ?";
+      valuesVendas.push(n_venda);
+    }
+
+    if (data) {
+      queryVendas += " AND DATE(data) = ?";
+      valuesVendas.push(data);
+    }
+
+    if (forma_pagamento) {
+      queryPagamentos += " AND forma_pagamento = ?";
+      valuesPagamentos.push(forma_pagamento);
+    }
+
+    const [vendas] = await connection.query(queryVendas, valuesVendas);
+    const [pagamentos] = await connection.query(
+      queryPagamentos,
+      valuesPagamentos
+    );
+
+    return res.status(200).json({
+      sucesso: true,
+      mensagem: "Histórico de caixas encontrado",
+      vendas,
+      pagamentos,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      sucesso: false,
+      mensagem: "Erro ao buscar histórico de caixas",
+      erro: error.message,
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
 module.exports = {
   abrirCaixa,
   fecharCaixa,
@@ -384,4 +440,5 @@ module.exports = {
   getCaixasAbertos,
   getCaixasFechados,
   verificaCaixaAberto,
+  getHistoricoCaixas,
 };

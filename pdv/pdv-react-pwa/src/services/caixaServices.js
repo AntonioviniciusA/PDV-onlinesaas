@@ -3,7 +3,13 @@ import { baseUrl } from "./conection";
 export const caixaService = {
   autorizarCaixa: async (entrada) => {
     try {
-      const response = await baseUrl.post("/caixa/autorizar", { entrada });
+      const response = await baseUrl.post(
+        "/caixa/autorizar",
+        { entrada },
+        {
+          withCredentials: true,
+        }
+      );
       return response.data;
     } catch (error) {
       console.error("Erro ao autorizar caixa:", error);
@@ -12,11 +18,17 @@ export const caixaService = {
   },
   abrirCaixa: async (amount, usuario, caixa_numero) => {
     try {
-      const response = await baseUrl.post("/caixa/abrir", {
-        amount,
-        usuario,
-        caixa_numero,
-      });
+      const response = await baseUrl.post(
+        "/caixa/abrir",
+        {
+          amount,
+          usuario,
+          caixa_numero,
+        },
+        {
+          withCredentials: true,
+        }
+      );
       console.log("response", response);
       return response.data;
     } catch (error) {
@@ -26,11 +38,17 @@ export const caixaService = {
   },
   fecharCaixa: async (amount, usuario, caixa_numero) => {
     try {
-      const response = await baseUrl.post("/caixa/fechar", {
-        amount,
-        usuario,
-        caixa_numero,
-      });
+      const response = await baseUrl.post(
+        "/caixa/fechar",
+        {
+          amount,
+          usuario,
+          caixa_numero,
+        },
+        {
+          withCredentials: true,
+        }
+      );
       return response.data;
     } catch (error) {
       console.error("Erro ao fechar caixa:", error);
@@ -39,12 +57,36 @@ export const caixaService = {
   },
   checkAutorizacao: async (usuario) => {
     try {
-      const response = await baseUrl.post("/caixa/check-autorizacao", {
-        usuario: usuario,
-      });
+      const response = await baseUrl.post(
+        "/caixa/check-autorizacao",
+        {
+          usuario: usuario,
+        },
+        {
+          withCredentials: true,
+        }
+      );
       return response.data;
     } catch (error) {
       console.error("Erro ao verificar autorização:", error);
+      throw error;
+    }
+  },
+  getHistoricoCaixas: async (caixa, n_venda, data, forma_pagamento) => {
+    try {
+      const response = await baseUrl.get("/caixa/historico", {
+        params: {
+          caixa: JSON.stringify(caixa), // muito importante
+          n_venda,
+          data,
+          forma_pagamento,
+        },
+        withCredentials: true,
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao obter histórico de caixas:", error);
       throw error;
     }
   },

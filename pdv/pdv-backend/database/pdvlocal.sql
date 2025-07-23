@@ -442,13 +442,12 @@ CREATE TABLE IF NOT EXISTS configuracoes_sistema (
 
 INSERT INTO configuracoes_sistema (
   id_loja,
-  link_api_cupom,
-  link_api_recibo
+  link_api_cupom
 )
 SELECT * FROM (
   SELECT
     '00000000-0000-0000-0000-000000000000' AS id_loja,
-    'http://localhost:3000/api/cupom' AS link_api_cupom,
+    'http://localhost:3000/api/cupom' AS link_api_cupom
 ) AS tmp
 WHERE NOT EXISTS (
   SELECT 1 FROM configuracoes_sistema WHERE id_loja = '00000000-0000-0000-0000-000000000000'

@@ -55,17 +55,16 @@ import {
 import RequestAuthorization from "../components/RequestAuthorization.jsx";
 import beepSound from "../assets/sounds/beep.mp3";
 
-import { initialProducts } from "../data/initialProducts.js";
-
 import { cupomService } from "../services/cupomServices.js";
 import { localAuthService } from "../services/localAuthService.js";
 import cardTypes from "../types/card-types.js";
 import { hasPermission } from "../utils/permissions.js";
+import { produtosServices } from "../services/produtosServices.js";
 
 export default function PDVCaixa() {
   const navigate = useNavigate();
   const { salvarCupom, requestNotificationPermission } = useOfflineSync();
-  const [products, setProducts] = useState(initialProducts);
+  const [products, setProducts] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
 
   // Solicitar permissão de notificação ao montar o componente
@@ -74,6 +73,11 @@ export default function PDVCaixa() {
     // Buscar usuário autenticado ao montar
     (async () => {
       const autenticado = await localAuthService.isAuthenticated();
+      // Defina o id_loja conforme sua lógica de autenticação
+      const id_loja = autenticado?.user?.id_loja || "1";
+      await produtosServices.getProdutos(id_loja).then((res) => {
+        setProducts(res.produtos || []);
+      });
       console.log("autenticado", autenticado);
       if (!autenticado) {
         navigate("/llogin");

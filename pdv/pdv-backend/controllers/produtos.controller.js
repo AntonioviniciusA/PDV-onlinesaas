@@ -2,10 +2,11 @@ const { pool } = require("../config/database.js");
 
 const criarProduto = async (req, res) => {
   let connection;
+  console.log("Criando produto com dados:", req.body);
   try {
     connection = await pool.getConnection();
+    const id_loja = req.query.id_loja || "00000000-0000-0000-0000-000000000000";
     const {
-      id_loja,
       codigo,
       codigo_barras,
       descricao,
@@ -33,6 +34,7 @@ const criarProduto = async (req, res) => {
       cst_cofins,
       cofins,
     } = req.body;
+    console.log("a");
 
     const [result] = await connection.query(
       `INSERT INTO produto (
@@ -44,32 +46,34 @@ const criarProduto = async (req, res) => {
         id_loja,
         codigo,
         codigo_barras,
-        descricao,
-        grupo,
-        ncm,
-        preco_custo,
-        margem_lucro,
-        preco_venda,
-        estoque_minimo,
-        estoque_maximo,
-        estoque_atual,
-        unidade,
-        controla_estoque,
-        cfop,
-        csosn,
-        cst,
-        icms,
-        ativo,
-        exibir_tela,
-        solicita_quantidade,
-        permitir_combinacao,
-        cest,
-        cst_pis,
-        pis,
-        cst_cofins,
-        cofins,
+        descricao || "",
+        grupo || "",
+        ncm || "",
+        preco_custo || 0,
+        margem_lucro || 0,
+        preco_venda || 0,
+        estoque_minimo || 0,
+        estoque_maximo || 0,
+        estoque_atual || 0,
+        unidade || "",
+        controla_estoque || 0,
+        cfop || "",
+        csosn || "",
+        cst || 0,
+        icms || 0,
+        ativo || 1,
+        exibir_tela || 0,
+        solicita_quantidade || 0,
+        permitir_combinacao || 0,
+        cest || "",
+        cst_pis || 0,
+        pis || 0,
+        cst_cofins || 0,
+        cofins || 0,
       ]
     );
+    console.log("b");
+
     return res.status(201).json({ sucesso: true, id: result.insertId });
   } catch (error) {
     return res.status(500).json({

@@ -9,6 +9,7 @@ const autorizar = async (req, res, next) => {
     console.log("req.body", req.body);
     connection = await pool.getConnection();
     const token = req.cookies.token;
+    console.log("Token recebido:", token);
 
     if (!token) {
       return res
@@ -16,6 +17,7 @@ const autorizar = async (req, res, next) => {
         .json({ sucesso: false, mensagem: "Entrada não informada" });
     }
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("Decoded token:", decoded);
     req.user = decoded;
     const autorizador = req.body.usuario.autorizador.trim();
 

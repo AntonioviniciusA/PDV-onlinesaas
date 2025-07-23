@@ -3,7 +3,9 @@ import { baseUrl } from "./conection";
 export const cupomService = {
   printThermalCupom: async (cupom) => {
     try {
-      const response = await baseUrl.post("/cupom/print-thermal-cupom", cupom);
+      const response = await baseUrl.post("/cupom/print-thermal-cupom", cupom, {
+        withCredentials: true,
+      });
       return response.data;
     } catch (error) {
       console.error("Erro ao imprimir cupom:", error);
@@ -12,7 +14,13 @@ export const cupomService = {
   },
   printThermalRecibo: async (cupom) => {
     try {
-      const response = await baseUrl.post("/cupom/print-thermal-recibo", cupom);
+      const response = await baseUrl.post(
+        "/cupom/print-thermal-recibo",
+        cupom,
+        {
+          withCredentials: true,
+        }
+      );
       return response.data;
     } catch (error) {
       console.error("Erro ao imprimir recibo:", error);
