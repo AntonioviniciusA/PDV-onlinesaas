@@ -1,8 +1,9 @@
 const express = require("express");
 const router = express.Router();
-const { loginSaas } = require("../controllers/saas.controller.js");
+const saasController = require("../controllers/saas.controller.js");
 
 // Rota de login local (cliente/parceiro)
-router.post("/login", loginSaas);
+router.post("/login", saasController.loginSaas);
+router.get("/me", saasController.meSaas);
 
 module.exports = router;

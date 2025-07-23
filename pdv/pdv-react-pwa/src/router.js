@@ -1,18 +1,21 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
-import PDVCaixa from "./pdv-caixa";
+import PDVCaixa from "./pages/pdv-caixa";
 import AuthDialog from "./components/AuthDialog";
-import LocalUsers from "./LocalUsers";
-import Clientes from "./Clientes";
-import Produtos from "./Produtos";
-import Etiquetas from "./Etiquetas";
-import Historico from "./Historico";
+import LocalUsers from "./pages/LocalUsers";
+import Clientes from "./pages/Clientes";
+import Produtos from "./pages/Produtos";
+import Etiquetas from "./pages/Etiquetas";
+import Historico from "./pages/Historico";
 import PrivateRoute from "./utils/privateRoute";
 import PdvProtectedRoute from "./utils/pdvProtectedRoute";
+import LoginPage from "./components/login-dialog";
+import Configuracoes from "./pages/Configuracoes";
 export default function Router() {
   return (
     <Routes>
       <Route path="/" element={<AuthDialog />} />
+      <Route path="/llogin" element={<LoginPage />} />
       <Route
         path="/pdv"
         element={
@@ -71,6 +74,16 @@ export default function Router() {
           <PrivateRoute>
             <PdvProtectedRoute requiredPermissions={["reports.view"]}>
               <Historico />
+            </PdvProtectedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/configuracoes"
+        element={
+          <PrivateRoute>
+            <PdvProtectedRoute requiredPermissions={["*"]}>
+              <Configuracoes />
             </PdvProtectedRoute>
           </PrivateRoute>
         }

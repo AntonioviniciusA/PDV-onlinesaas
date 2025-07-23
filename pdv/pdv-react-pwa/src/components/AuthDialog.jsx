@@ -20,20 +20,6 @@ const AuthDialog = ({ isOpen, onClose, onAuthSuccess }) => {
   const [loginSuccess, setLoginSuccess] = useState("");
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetch("/pdv/db-exists")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.exists) {
-          setShowDialog(false);
-          onAuthSuccess?.();
-        } else {
-          setShowDialog(true);
-        }
-      })
-      .catch(() => setShowDialog(true));
-  }, [onAuthSuccess]);
-
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     if (name === "rememberMe") {
@@ -82,14 +68,8 @@ const AuthDialog = ({ isOpen, onClose, onAuthSuccess }) => {
         payload.cnpj = formData.cnpj;
       }
       const login = await AuthService.login(payload);
-
-      if (login.success && login.token) {
-        sessionStorage.setItem("t", login.token);
-        sessionStorage.setItem("usd", JSON.stringify(login.user));
-        if (rememberMe) {
-          localStorage.setItem("t", login.token);
-          localStorage.setItem("usd", JSON.stringify(login.user));
-        }
+      console.log("login", login);
+      if (login.success) {
         setShowDialog(false);
         navigate("/pdv");
         onAuthSuccess?.({ email: formData.email });

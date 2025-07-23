@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,10 @@ import {
   CheckCircle,
   Clock,
 } from "lucide-react";
+import { hasPermission } from "../utils/permissions";
+import { caixaService } from "../services/caixaServices";
+import { localAuthService } from "../services/localAuthService";
+import RequestAuthorization from "./RequestAuthorization";
 
 export function CashManagementDialog({
   open,
@@ -29,39 +33,87 @@ export function CashManagementDialog({
   action,
   currentSession,
   onConfirm,
+  user,
   userName,
 }) {
   const [amount, setAmount] = useState("");
   const [error, setError] = useState("");
   const [showReport, setShowReport] = useState(false);
 
-  const handleSubmit = (e) => {
+  const [permission, setPermission] = useState(false);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
+  const [caixa_numero, setCaixaNumero] = useState(1);
+
+  useEffect(() => {
+    if (!user) return;
+    const permission = hasPermission(user, "cash", "manage");
+    setPermission(permission);
+  }, [user]);
+
+  const handleAbrirCaixa = async (e) => {
     e.preventDefault();
+    const valor = parseFloat(amount);
+    const numeroCaixa = parseInt(caixa_numero, 10);
 
-    if (!amount.trim()) {
-      setError("Digite o valor");
-      return;
-    }
+    if (permission === true) {
+      try {
+        const response = await caixaService.abrirCaixa(
+          valor,
+          user,
+          numeroCaixa
+        );
 
-    const value = Number.parseFloat(amount);
-    if (value < 0) {
-      setError("Valor deve ser positivo");
-      return;
-    }
-
-    if (action === "open" && value < 25) {
-      setError("Valor mínimo para abertura: R$ 25,00");
-      return;
-    }
-
-    onConfirm(value);
-    setAmount("");
-    setError("");
-
-    if (action === "close") {
-      setShowReport(true);
+        onConfirm && onConfirm(response);
+        onOpenChange(false);
+      } catch (err) {
+        alert("Erro ao abrir caixa: " + (err?.message || ""));
+      }
     } else {
-      onOpenChange(false);
+      setShowAuthDialog(true);
+      setPendingAction(() => async (usuario) => {
+        try {
+          const response = await caixaService.abrirCaixa(
+            valor,
+            usuario,
+            numeroCaixa
+          );
+          onConfirm && onConfirm(response);
+          onOpenChange(false);
+        } catch (err) {
+          alert("Erro ao abrir caixa: " + (err?.message || ""));
+        }
+      });
+    }
+  };
+
+  const handleFecharCaixa = async (e) => {
+    e.preventDefault();
+    const valor = parseFloat(amount);
+    const numeroCaixa = parseInt(caixa_numero, 10);
+
+    if (permission === true) {
+      try {
+        await caixaService.fecharCaixa(valor, user, numeroCaixa);
+
+        onConfirm && onConfirm(valor);
+        onOpenChange(false);
+      } catch (err) {
+        alert("Erro ao fechar caixa: " + (err?.message || ""));
+      }
+    } else {
+      setShowAuthDialog(true);
+      setPendingAction(() => async (usuario) => {
+        try {
+          await caixaService.fecharCaixa(valor, usuario, numeroCaixa);
+
+          onConfirm && onConfirm(valor);
+          onOpenChange(false);
+        } catch (err) {
+          alert(err?.message);
+          console.log(err);
+        }
+      });
     }
   };
 
@@ -134,7 +186,10 @@ Data/Hora: ${new Date().toLocaleString("pt-BR")}
         </DialogHeader>
 
         {!showReport ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form
+            onSubmit={action === "open" ? handleAbrirCaixa : handleFecharCaixa}
+            className="space-y-4"
+          >
             {action === "open" ? (
               <div>
                 <Alert className="border-blue-200 bg-blue-50">
@@ -144,7 +199,30 @@ Data/Hora: ${new Date().toLocaleString("pt-BR")}
                     operações.
                   </AlertDescription>
                 </Alert>
-
+                <div className="mt-4">
+                  <Label htmlFor="caixa_numero">Número do Caixa *</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-3 text-gray-500">
+                      Nº
+                    </span>
+                    <Input
+                      id="caixa_numero"
+                      type="number"
+                      step="1"
+                      min="1"
+                      value={caixa_numero}
+                      onChange={(e) => setCaixaNumero(e.target.value)}
+                      placeholder="0,00"
+                      className="pl-10 text-lg font-semibold"
+                      required
+                      autoFocus
+                      autoComplete="off"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Número do caixa: {caixa_numero}
+                  </p>
+                </div>
                 <div className="mt-4">
                   <Label htmlFor="initialAmount">Valor Inicial *</Label>
                   <div className="relative">
@@ -161,7 +239,7 @@ Data/Hora: ${new Date().toLocaleString("pt-BR")}
                       placeholder="0,00"
                       className="pl-10 text-lg font-semibold"
                       required
-                      autoFocus
+                      autoComplete="off"
                     />
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
@@ -289,6 +367,23 @@ Data/Hora: ${new Date().toLocaleString("pt-BR")}
           </div>
         )}
       </DialogContent>
+      <RequestAuthorization
+        open={showAuthDialog}
+        onOpenChange={setShowAuthDialog}
+        onSuccess={(user, autorizador) => {
+          setShowAuthDialog(false);
+          if (pendingAction) {
+            pendingAction(user, autorizador);
+            setPendingAction(null);
+          }
+        }}
+        title={
+          action === "open"
+            ? "Autorização para Abrir Caixa"
+            : "Autorização para Fechar Caixa"
+        }
+        description="Informe as credenciais de um usuário autorizador."
+      />
     </Dialog>
   );
 }

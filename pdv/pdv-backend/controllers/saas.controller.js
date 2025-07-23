@@ -76,21 +76,31 @@ const verificarBancoExiste = async (req, res) => {
 const loginSaas = async (req, res) => {
   try {
     const { email, senha, cnpj } = req.body;
-    // Decide tipo de login
     let loginPayload = { email, senha };
     let loginUrl = `${process.env.SAAS_URL}/saas/cliente/login`;
     if (cnpj) {
       loginPayload.cnpj = cnpj;
       loginUrl = `${process.env.SAAS_URL}/saas/parceiro-saas/login`;
     }
-    // Faz login na API SaaS
-    const resposta = await axios.post(loginUrl, loginPayload);
-    if (resposta.data && resposta.data.token) {
-      // Se login aceito, cria o banco local se não existir
+    const retorno = await axios.post(loginUrl, loginPayload);
+    console.log("retorno loginSaas", retorno.data);
+    if (retorno.data && retorno.data.token) {
+      res.cookie("token_saas", retorno.data.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias
+      });
+      // Seta o tipo de usuário SaaS
+      res.cookie("saasTipo", cnpj ? "parceiro" : "cliente", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias
+      });
       return res.json({
         success: true,
-        user: resposta.data.user,
-        token: resposta.data.token,
+        user: retorno.data.user,
       });
     } else {
       return res
@@ -102,8 +112,38 @@ const loginSaas = async (req, res) => {
   }
 };
 
+// Novo endpoint para retornar o usuário autenticado do SaaS
+const meSaas = async (req, res) => {
+  const cookies = req.cookies || {};
+  const token = cookies.t;
+  const tipo = cookies.saasTipo;
+  if (!token) {
+    return res.status(401).json({ success: false, message: "Não autenticado" });
+  }
+  try {
+    let url = `${process.env.SAAS_URL}/saas/cliente/me`;
+    if (tipo === "parceiro") {
+      url = `${process.env.SAAS_URL}/saas/parceiro-saas/me`;
+    }
+    const resposta = await axios.get(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    console.log("resposta meSaas", resposta.data);
+    if (resposta.data && resposta.data.user) {
+      return res.json({ success: true, user: resposta.data.user });
+    } else {
+      return res.json({ success: false, message: resposta.data.message });
+    }
+  } catch (error) {
+    return res.status(401).json({ success: false, message: "Token inválido" });
+  }
+};
+
 module.exports = {
   verifySubscription,
   verificarBancoExiste,
   loginSaas,
+  meSaas,
 };

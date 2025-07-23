@@ -1,18 +1,37 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "./ui/button";
-import { DollarSign, Package, Tag, History, X } from "lucide-react";
+import {
+  DollarSign,
+  Package,
+  Tag,
+  History,
+  X,
+  User,
+  LogOut,
+  Settings,
+} from "lucide-react";
 import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
-
+import { localAuthService } from "../services/localAuthService";
 export default function PdvNav({
   shortcuts = [],
-  hasPermission = () => true,
+  hasPermission = () => false,
   cashSession,
-  setShowLabelConfig = () => {},
   setShowCashManagement = () => {},
   setCashAction = () => {},
   navigate,
   onCloseNav,
 }) {
+  const [user, setUser] = useState(null);
+
+  const getUser = async () => {
+    const user = await localAuthService.getUser();
+    setUser(user);
+  };
+
+  useEffect(() => {
+    getUser();
+  }, []);
+
   return (
     <div className="flex-shrink-0 p-4 border-b bg-black relative">
       {/* Botão para fechar o nav */}
@@ -40,6 +59,11 @@ export default function PdvNav({
               setCashAction(cashSession ? "close" : "open");
               setShowCashManagement(true);
             }}
+            title={
+              !hasPermission("pdv.authorize")
+                ? "Você não tem permissão para abrir ou fechar caixa"
+                : ""
+            }
             variant="outline"
             size="sm"
           >
@@ -74,6 +98,42 @@ export default function PdvNav({
             <span className="hidden sm:inline">Histórico (F6)</span>
             <span className="sm:hidden">F6</span>
           </Button>
+          {(user?.perfil === "admin" ||
+            user?.permissions?.includes("*") ||
+            user?.permissions?.includes("admin")) && (
+            <Button
+              onClick={() => navigate("/configuracoes")}
+              variant="outline"
+              size="sm"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">Configurações</span>
+            </Button>
+          )}
+          <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-center cursor-pointer">
+            <User
+              className="w-4 h-4"
+              width={20}
+              height={20}
+              color="black"
+              strokeWidth={2}
+              fill="white"
+            />
+          </div>
+
+          <div className="flex flex-col">
+            <p className="text-sm text-white font-bold">
+              {user?.nome || "Usuário"}
+            </p>
+            <p className="text-xs text-white">{user?.perfil || "Perfil"}</p>
+          </div>
+          <div
+            className="bg-white p-1 rounded-md border border-gray-300 flex items-center justify-center text-center cursor-pointer"
+            onClick={() => localAuthService.clearAuth()}
+          >
+            <LogOut className="w-4 h-4 mr-2" color="black" strokeWidth={2} />
+            <p className="text-xs text-black font-bold">Sair</p>
+          </div>
         </div>
       </div>
     </div>

@@ -14,6 +14,15 @@ CREATE TABLE IF NOT EXISTS users (
   `criado_em` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `atualizado_em` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS autorizadores (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `id_loja` VARCHAR(36) NOT NULL,
+  `usuario_id` INT,
+  `autorizador` VARCHAR(20),
+  `criado_em` DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Inserir usuário administrador padrão
 INSERT INTO users (
   id_loja,
@@ -31,7 +40,7 @@ SELECT * FROM (
     'admin@dominio.com' AS email,
     '$2a$10$yjkeg.NF9hK0sxQ/P5CLo.LdhE9B3U1fwXTOLYlB7VrKgN/lccgvi' AS senha, -- hash de admin123
     'admin' AS perfil,
-    '["pdv.operate","pdv.authorize","products.manage","reports.manage","cash.manage","labels.config"]' AS permissions,
+    '["*"]' AS permissions,
     1 AS ativo
 ) AS tmp
 WHERE NOT EXISTS (
@@ -155,27 +164,27 @@ CREATE TABLE IF NOT EXISTS configuracao (
 CREATE TABLE IF NOT EXISTS produto (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `id_loja` VARCHAR(36) NOT NULL,
-  `codigo` VARCHAR(50),
-  `codigo_barras` VARCHAR(100),
+  `codigo` VARCHAR(50) UNIQUE NOT NULL,
+  `codigo_barras` VARCHAR(100) UNIQUE NOT NULL,
   `descricao` VARCHAR(255),
-  `grupo` VARCHAR(100),
+  `grupo` VARCHAR(100) NOT NULL,
   `ncm` VARCHAR(20),
   `preco_custo` DECIMAL(10,2),
   `margem_lucro` DECIMAL(5,2),
-  `preco_venda` DECIMAL(10,2),
+  `preco_venda` DECIMAL(10,2) ,
   `estoque_minimo` INT,
   `estoque_maximo` INT,
   `estoque_atual` INT,
-  `unidade` VARCHAR(10),
-  `controla_estoque` BOOLEAN,
+  `unidade` VARCHAR(20) DEFAULT 'UN',
+  `controla_estoque` BOOLEAN DEFAULT false,
   `cfop` VARCHAR(10),
   `csosn` VARCHAR(10),
   `cst` VARCHAR(10),
   `icms` DECIMAL(5,2),
-  `ativo` BOOLEAN,
-  `exibir_tela` BOOLEAN,
-  `solicita_quantidade` BOOLEAN,
-  `permitir_combinacao` BOOLEAN,
+  `ativo` BOOLEAN DEFAULT true,
+  `exibir_tela` BOOLEAN DEFAULT true,
+  `solicita_quantidade` BOOLEAN DEFAULT false,
+  `permitir_combinacao` BOOLEAN DEFAULT false,
   `cest` VARCHAR(10),
   `cst_pis` VARCHAR(10),
   `pis` DECIMAL(5,2),
@@ -281,11 +290,19 @@ CREATE TABLE IF NOT EXISTS caixas (
   `caixa_numero` INT NOT NULL UNIQUE,
   `status` ENUM('aberto', 'fechado') NOT NULL,
   `valor_inicial` DECIMAL(10,2) NOT NULL,
-  `valor_final` DECIMAL(10,2) NOT NULL,
-  `diferenca` DECIMAL(10,2) NOT NULL,
-  `usuario` VARCHAR(100) NOT NULL,
+  `valor_final` DECIMAL(10,2) DEFAULT 0,
+  `diferenca` DECIMAL(10,2) DEFAULT 0,
+  `operador_usuario_id` INT,
+  `token` VARCHAR(20) NOT NULL,
+  `abertura_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `fechamento_em` TIMESTAMP DEFAULT NULL,
+  `abertura_usuario_id` INT NOT NULL,
+  `fechamento_usuario_id` INT DEFAULT NULL,
   `criado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  `atualizado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  `atualizado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (`operador_usuario_id`) REFERENCES `users`(`id`),
+  FOREIGN KEY (`abertura_usuario_id`) REFERENCES `users`(`id`),
+  FOREIGN KEY (`fechamento_usuario_id`) REFERENCES `users`(`id`)
 );
 -- Tabela de vendas
 CREATE TABLE IF NOT EXISTS vendas (
@@ -293,6 +310,7 @@ CREATE TABLE IF NOT EXISTS vendas (
   `id_loja` VARCHAR(36) NOT NULL,
   `id_integracao` VARCHAR(50) UNIQUE NOT NULL,
   `id_caixa` INT NOT NULL,
+  `operador_usuario_id` INT,
   `data` DATE NOT NULL,
   `total` DECIMAL(10,2) NOT NULL,
   `desconto` DECIMAL(10,2) DEFAULT 0,
@@ -304,6 +322,7 @@ CREATE TABLE IF NOT EXISTS vendas (
   `parcelas_restantes` INT DEFAULT 0,
   `criado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `atualizado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (`operador_usuario_id`) REFERENCES `users`(`id`),
   FOREIGN KEY (`id_integracao`) REFERENCES `recibos`(`id_integracao`) ON DELETE CASCADE
 );
 
@@ -378,4 +397,59 @@ SELECT * FROM (
 ) AS tmp
 WHERE NOT EXISTS (
   SELECT 1 FROM etiqueta_configuracoes WHERE nome = 'Premium'
+);
+
+CREATE TABLE IF NOT EXISTS impressora_config (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `id_loja` VARCHAR(36) NOT NULL,
+  `interface` VARCHAR(50) NOT NULL,
+  `type` VARCHAR(50) NOT NULL,
+  `characterSet` VARCHAR(50) DEFAULT 'UTF-8',
+  `removeSpecialCharacters` BOOLEAN DEFAULT false,
+  `lineCharacter` VARCHAR(5) DEFAULT '-',
+  `criado_em` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `atualizado_em` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Inserir configuração padrão de impressora
+INSERT INTO impressora_config (
+  id_loja,
+  interface,
+  type,
+  characterSet,
+  removeSpecialCharacters,
+  lineCharacter
+)
+SELECT * FROM (
+  SELECT
+    '00000000-0000-0000-0000-000000000000' AS id_loja,
+    'USB' AS interface,
+    'EPSON' AS type,
+    'UTF-8' AS characterSet,
+    0 AS removeSpecialCharacters,
+    '-' AS lineCharacter
+) AS tmp
+WHERE NOT EXISTS (
+  SELECT 1 FROM impressora_config WHERE id_loja = '00000000-0000-0000-0000-000000000000'
+);
+
+CREATE TABLE IF NOT EXISTS configuracoes_sistema (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `id_loja` VARCHAR(36) NOT NULL,
+  `link_api_cupom` VARCHAR(255) NOT NULL,
+  `atualizado_em` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+INSERT INTO configuracoes_sistema (
+  id_loja,
+  link_api_cupom,
+  link_api_recibo
+)
+SELECT * FROM (
+  SELECT
+    '00000000-0000-0000-0000-000000000000' AS id_loja,
+    'http://localhost:3000/api/cupom' AS link_api_cupom,
+) AS tmp
+WHERE NOT EXISTS (
+  SELECT 1 FROM configuracoes_sistema WHERE id_loja = '00000000-0000-0000-0000-000000000000'
 );

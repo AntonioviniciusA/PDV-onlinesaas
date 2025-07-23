@@ -1,10 +1,10 @@
-import { apiNoAuth } from "./conection.js";
+import { baseUrl } from "./conection.js";
 
 const planosService = {
   // Buscar todos os planos
   async getAllPlans() {
     try {
-      const response = await apiNoAuth.get("/plano");
+      const response = await baseUrl.get("/plano");
       console.log("Resposta da API:", response.data);
       return response.data.data || [];
     } catch (error) {
@@ -17,7 +17,7 @@ const planosService = {
   // Buscar planos por ciclo de cobrança
   async getPlansByBillingCycle(billingCycle) {
     try {
-      const response = await apiNoAuth.get(`/plano/ciclo/${billingCycle}`);
+      const response = await baseUrl.get(`/plano/ciclo/${billingCycle}`);
       console.log(response);
       console.log(`Resposta da API para ${billingCycle}:`, response.data);
       return response.data.data || [];
@@ -41,7 +41,7 @@ const planosService = {
   // Buscar plano por ID
   async getPlanById(id) {
     try {
-      const response = await apiNoAuth.get(`/plano/${id}`);
+      const response = await baseUrl.get(`/plano/${id}`);
       console.log("Resposta da API para plano por ID:", response.data);
       return response.data.data;
     } catch (error) {
