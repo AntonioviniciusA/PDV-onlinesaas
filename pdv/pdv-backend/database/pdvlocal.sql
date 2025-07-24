@@ -40,7 +40,7 @@ SELECT * FROM (
     'admin@dominio.com' AS email,
     '$2a$10$yjkeg.NF9hK0sxQ/P5CLo.LdhE9B3U1fwXTOLYlB7VrKgN/lccgvi' AS senha, -- hash de admin123
     'admin' AS perfil,
-    '["*"]' AS permissions,
+    '["pdv.products"]' AS permissions,
     1 AS ativo
 ) AS tmp
 WHERE NOT EXISTS (
@@ -64,7 +64,7 @@ SELECT * FROM (
     'joao.caixa@dominio.com' AS email,
     '$2a$10$yjkeg.NF9hK0sxQ/P5CLo.LdhE9B3U1fwXTOLYlB7VrKgN/lccgvi' AS senha,
     'operador' AS perfil,
-    '["pdv.operate"]' AS permissions,
+    '["pdv.operate","pdv.authorize","products.manage","reports.manage","cash.manage","labels.config","pdv.products"]' AS permissions,
     1 AS ativo
 ) AS tmp
 WHERE NOT EXISTS (
@@ -112,7 +112,7 @@ SELECT * FROM (
     'carlos.supervisor@dominio.com' AS email,
     '$2a$10$yjkeg.NF9hK0sxQ/P5CLo.LdhE9B3U1fwXTOLYlB7VrKgN/lccgvi' AS senha,
     'gerente' AS perfil,
-    '["pdv.operate","pdv.authorize","products.view","reports.view","cash.manage"]' AS permissions,
+    '["pdv.operate","pdv.authorize","products.view","reports.view","cash.manage", "pdv.products"]' AS permissions,
     1 AS ativo
 ) AS tmp
 WHERE NOT EXISTS (
@@ -136,7 +136,7 @@ SELECT * FROM (
     'ana.gerente@dominio.com' AS email,
     '$2a$10$yjkeg.NF9hK0sxQ/P5CLo.LdhE9B3U1fwXTOLYlB7VrKgN/lccgvi' AS senha,
     'gerente' AS perfil,
-    '["pdv.operate","pdv.authorize","products.manage","reports.manage","cash.manage","labels.config"]' AS permissions,
+    '["pdv.operate","pdv.authorize","products.manage","reports.manage","cash.manage","labels.config", "pdv.products"]' AS permissions,
     1 AS ativo
 ) AS tmp
 WHERE NOT EXISTS (

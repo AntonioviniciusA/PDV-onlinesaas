@@ -5,8 +5,8 @@ const auth = async (req, res, next) => {
   let connection;
   try {
     // Busca o token do cookie
-    const token = req.cookies.token_saas;
-    console.log("middleware");
+    const token = req.cookies.token;
+    console.log("middleware", token);
     if (!token) {
       return res.status(401).json({
         success: false,

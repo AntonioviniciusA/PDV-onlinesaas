@@ -36,9 +36,9 @@ import {
 import { CSVImportDialog } from "../components/csv-import-dialog.jsx";
 import { calculateComparativePrice } from "../components/unit-converter.js";
 import { produtosServices } from "../services/produtosServices.js";
+import { localAuthService } from "../services/localAuthService.js";
 
 export default function CadastroProdutos() {
-  const id_loja = "1"; // Ajuste conforme sua lógica de autenticação
   const [searchTerm, setSearchTerm] = useState("");
   const [editingProduct, setEditingProduct] = useState(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -115,8 +115,12 @@ export default function CadastroProdutos() {
     setLoading(true);
     setError("");
     try {
-      const res = await produtosServices.getProdutos(id_loja);
-      setProducts(res.produtos || []);
+      const valid = await localAuthService.isAuthenticated();
+      console.log("valid", valid);
+      if (valid) {
+        // // const res = await produtosServices.getProdutos();
+        // setProducts(res.produtos || []);
+      }
     } catch (err) {
       setError("Erro ao carregar produtos");
     } finally {
@@ -177,7 +181,6 @@ export default function CadastroProdutos() {
     setError("");
     try {
       const productData = {
-        id_loja,
         codigo: formData.codigo.trim(),
         codigo_barras: formData.codigo_barras.trim(),
         descricao: formData.descricao.trim() || formData.name.trim(),
@@ -330,7 +333,7 @@ export default function CadastroProdutos() {
       setLoading(true);
       setError("");
       try {
-        await produtosServices.deleteProduto(product.id, id_loja);
+        await produtosServices.deleteProduto(product.id);
         setSuccess("Produto excluído com sucesso!");
         await fetchProdutos();
         setTimeout(() => setSuccess(""), 3000);

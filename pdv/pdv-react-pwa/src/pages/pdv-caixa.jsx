@@ -66,18 +66,20 @@ export default function PDVCaixa() {
   const { salvarCupom, requestNotificationPermission } = useOfflineSync();
   const [products, setProducts] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
+  let autenticado = false;
 
   // Solicitar permissão de notificação ao montar o componente
   useEffect(() => {
     requestNotificationPermission();
     // Buscar usuário autenticado ao montar
     (async () => {
-      const autenticado = await localAuthService.isAuthenticated();
+      autenticado = await localAuthService.isAuthenticated();
       // Defina o id_loja conforme sua lógica de autenticação
-      const id_loja = autenticado?.user?.id_loja || "1";
-      await produtosServices.getProdutos(id_loja).then((res) => {
-        setProducts(res.produtos || []);
-      });
+      if (autenticado) {
+        await produtosServices.getProdutos().then((res) => {
+          setProducts(res.produtos || []);
+        });
+      }
       console.log("autenticado", autenticado);
       if (!autenticado) {
         navigate("/llogin");
@@ -141,7 +143,6 @@ export default function PDVCaixa() {
   const discountValueInputRef = useRef(null);
   const searchTimeoutRef = useRef();
   const audioRef = useRef(null);
-
   useEffect(() => {
     if (authorizationRequest && audioRef.current) {
       audioRef.current.currentTime = 0;
