@@ -6,12 +6,14 @@ import { Alert, AlertDescription } from "./ui/alert";
 import { LogIn, AlertTriangle } from "lucide-react";
 import { localAuthService } from "../services/localAuthService";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function LoginPage() {
   const [entrada, setEntrada] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,6 +25,7 @@ export default function LoginPage() {
     });
 
     if (login.success) {
+      await queryClient.invalidateQueries(["auth"]);
       navigate("/pdv");
     } else {
       setError("Usuário ou senha inválidos");

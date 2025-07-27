@@ -56,38 +56,19 @@ import RequestAuthorization from "../components/RequestAuthorization.jsx";
 import beepSound from "../assets/sounds/beep.mp3";
 
 import { cupomService } from "../services/cupomServices.js";
-import { localAuthService } from "../services/localAuthService.js";
 import cardTypes from "../types/card-types.js";
 import { hasPermission } from "../utils/permissions.js";
-import { produtosServices } from "../services/produtosServices.js";
+import { useProdutos } from "../hooks/useProducts.js";
+import { useIsAuthenticated, useUser } from "../hooks/useAuth";
+import Loading from "../components/Loading.jsx";
 
 export default function PDVCaixa() {
   const navigate = useNavigate();
   const { salvarCupom, requestNotificationPermission } = useOfflineSync();
   const [products, setProducts] = useState([]);
-  const [currentUser, setCurrentUser] = useState(null);
-  let autenticado = false;
-
-  // Solicitar permissão de notificação ao montar o componente
-  useEffect(() => {
-    requestNotificationPermission();
-    // Buscar usuário autenticado ao montar
-    (async () => {
-      autenticado = await localAuthService.isAuthenticated();
-      // Defina o id_loja conforme sua lógica de autenticação
-      if (autenticado) {
-        await produtosServices.getProdutos().then((res) => {
-          setProducts(res.produtos || []);
-        });
-      }
-      console.log("autenticado", autenticado);
-      if (!autenticado) {
-        navigate("/llogin");
-      } else {
-        setCurrentUser(autenticado.user);
-      }
-    })();
-  }, [requestNotificationPermission, navigate]);
+  const { data: autenticado, isLoading: loadingAuth } = useIsAuthenticated();
+  const { data: user, isLoading: loadingUser } = useUser();
+  const { data: produtos, isLoading: loadingProdutos } = useProdutos();
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [barcode, setBarcode] = useState("");
@@ -143,6 +124,9 @@ export default function PDVCaixa() {
   const discountValueInputRef = useRef(null);
   const searchTimeoutRef = useRef();
   const audioRef = useRef(null);
+  useEffect(() => {
+    setProducts(produtos || []);
+  }, [produtos]);
   useEffect(() => {
     if (authorizationRequest && audioRef.current) {
       audioRef.current.currentTime = 0;
@@ -448,7 +432,7 @@ export default function PDVCaixa() {
       return;
     }
 
-    if (!receiptType && hasPermission(currentUser, "receipts", "choose")) {
+    if (!receiptType && hasPermission(user, "receipts", "choose")) {
       const userPermissions = receiptConfig.rolePermissions[null];
       if (userPermissions?.canChoose) {
         setShowReceiptSelection(true);
@@ -504,7 +488,7 @@ export default function PDVCaixa() {
       receivedAmount: receivedAmount,
       changeAmount: changeAmount,
       receiptType: receiptType,
-      user: currentUser,
+      user: user,
       pixPaymentConfirmed: pixPaymentConfirmed,
     };
 
@@ -601,19 +585,13 @@ export default function PDVCaixa() {
   };
 
   const navigateToScreen = (screen) => {
-    if (
-      screen === "cadastro" &&
-      !hasPermission(currentUser, "products", "manage")
-    ) {
+    if (screen === "cadastro" && !hasPermission(user, "products", "manage")) {
       alert(
         "Acesso negado. Você não tem permissão para acessar o cadastro de produtos."
       );
       return;
     }
-    if (
-      screen === "etiquetas" &&
-      !hasPermission(currentUser, "labels", "config")
-    ) {
+    if (screen === "etiquetas" && !hasPermission(user, "labels", "config")) {
       alert("Acesso negado. Você não tem permissão para acessar as etiquetas.");
       return;
     }
@@ -749,6 +727,24 @@ export default function PDVCaixa() {
     },
   ]);
 
+  // Redirecionar se não autenticado
+  useEffect(() => {
+    if (!loadingAuth && autenticado === false) {
+      console.info(
+        "redirecionando para login, autenticado?",
+        autenticado,
+        "loadingAuth",
+        loadingAuth
+      );
+      navigate("/llogin");
+    }
+  }, [autenticado, loadingAuth, navigate]);
+
+  // Exibir loading enquanto qualquer hook estiver carregando
+  if (loadingAuth || loadingUser || loadingProdutos) {
+    return <Loading />;
+  }
+
   // Renderizar telas diferentes
   if (currentScreen === "historico") {
     return <HistoricoVendas />;
@@ -787,6 +783,7 @@ export default function PDVCaixa() {
           setCashAction={setCashAction}
           navigate={navigate}
           onCloseNav={() => setShowNav(false)}
+          user={user}
         />
       )}
       {/* Status Offline */}
@@ -1407,7 +1404,7 @@ export default function PDVCaixa() {
           if (cashAction === "open") {
             setCashSession({
               id: Date.now().toString(),
-              openedBy: currentUser?.name,
+              openedBy: user?.name,
               openedAt: new Date().toISOString(),
               initialAmount: amount,
               totalSales: 0,
@@ -1419,8 +1416,8 @@ export default function PDVCaixa() {
           }
           setShowCashManagement(false);
         }}
-        user={currentUser}
-        userName={currentUser?.name}
+        user={user}
+        userName={user?.name}
       />
 
       {/* Receipt Selection Dialog */}
@@ -1429,15 +1426,15 @@ export default function PDVCaixa() {
         onOpenChange={setShowReceiptSelection}
         onSelect={(type) => completeSale(undefined, undefined, type)}
         canChoose={
-          currentUser
-            ? receiptConfig.rolePermissions[currentUser.permissions]
-                ?.canChoose || false
+          user
+            ? receiptConfig.rolePermissions[user.permissions]?.canChoose ||
+              false
             : false
         }
         defaultType={
-          currentUser
-            ? receiptConfig.rolePermissions[currentUser.permissions]
-                ?.defaultType || "receipt"
+          user
+            ? receiptConfig.rolePermissions[user.permissions]?.defaultType ||
+              "receipt"
             : "receipt"
         }
       />

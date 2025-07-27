@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Button } from "./ui/button";
 import {
   DollarSign,
@@ -12,26 +12,17 @@ import {
 } from "lucide-react";
 import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
 import { localAuthService } from "../services/localAuthService";
+import { hasPermission } from "../utils/permissions";
 export default function PdvNav({
   shortcuts = [],
-  hasPermission = () => false,
+  hasPermission = (user, module) => false,
   cashSession,
   setShowCashManagement = () => {},
   setCashAction = () => {},
   navigate,
   onCloseNav,
+  user,
 }) {
-  const [user, setUser] = useState(null);
-
-  const getUser = async () => {
-    const user = await localAuthService.getUser();
-    setUser(user);
-  };
-
-  useEffect(() => {
-    getUser();
-  }, []);
-
   return (
     <div className="flex-shrink-0 p-4 border-b bg-black relative">
       {/* Botão para fechar o nav */}
@@ -60,7 +51,7 @@ export default function PdvNav({
               setShowCashManagement(true);
             }}
             title={
-              !hasPermission("pdv.authorize")
+              !hasPermission(user, "pdv.authorize", "write")
                 ? "Você não tem permissão para abrir ou fechar caixa"
                 : ""
             }
@@ -77,7 +68,7 @@ export default function PdvNav({
             onClick={() => navigate("/produtos")}
             variant="outline"
             size="sm"
-            disabled={!hasPermission("pdv.products || admin")}
+            disabled={!hasPermission(user, "pdv.products", "read")}
           >
             <Package className="w-4 h-4 mr-2" />
             <span className="hidden sm:inline">Produtos</span>

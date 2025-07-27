@@ -5,7 +5,6 @@ const criarProduto = async (req, res) => {
   console.log("Criando produto com dados:", req.body);
   try {
     connection = await pool.getConnection();
-    const id_loja = req.query.id_loja || "00000000-0000-0000-0000-000000000000";
     const {
       codigo,
       codigo_barras,
@@ -34,7 +33,6 @@ const criarProduto = async (req, res) => {
       cst_cofins,
       cofins,
     } = req.body;
-    console.log("a");
 
     const [result] = await connection.query(
       `INSERT INTO produto (
@@ -43,7 +41,6 @@ const criarProduto = async (req, res) => {
         ativo, exibir_tela, solicita_quantidade, permitir_combinacao, cest, cst_pis, pis, cst_cofins, cofins
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        id_loja,
         codigo,
         codigo_barras,
         descricao || "",
@@ -72,7 +69,6 @@ const criarProduto = async (req, res) => {
         cofins || 0,
       ]
     );
-    console.log("b");
 
     return res.status(201).json({ sucesso: true, id: result.insertId });
   } catch (error) {

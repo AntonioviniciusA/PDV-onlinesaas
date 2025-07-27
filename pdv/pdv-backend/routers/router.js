@@ -5,6 +5,7 @@ const autorizar = require("../middlewares/autorizar.middleware.js");
 
 router.use("/auth", require("./auth.router.js"));
 router.use("/saas", require("./saas.router.js"));
+router.use("/ncm", require("./ncm.router.js")); // Endpoint público para NCM
 router.use(auth);
 router.use("/caixa", require("./caixa.router.js"));
 router.use("/produtos", require("./produtos.router.js"));

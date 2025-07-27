@@ -26,7 +26,6 @@ export const localAuthService = {
       const response = await baseUrl.get("/auth/me", {
         withCredentials: true,
       });
-      console.log("response.data.user", !!response.data.user);
       return !!response.data.user;
     } catch {
       return false;

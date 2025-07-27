@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { localAuthService } from "../services/localAuthService";
 import RequestAuthorization from "../components/RequestAuthorization";
 import { caixaService } from "../services/caixaServices";
+import { useIsAuthenticated, useUser } from "../hooks/useAuth";
 
 export default function PdvProtectedRoute({
   children,
   requiredPermissions = [],
 }) {
+  const { data: autenticado, isLoading: loadingAuth } = useIsAuthenticated();
+  const { data: user, isLoading: loadingUser } = useUser();
   const [loading, setLoading] = useState(true);
   const [hasPermission, setHasPermission] = useState(true);
 
@@ -23,57 +25,61 @@ export default function PdvProtectedRoute({
   };
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const valid = await localAuthService.isAuthenticated();
-      if (!valid) {
-        return <Navigate to="/llogin" replace />;
-      }
-      if (valid) {
-        const user = await localAuthService.getUser();
-        // Verificar permissões se necessário
-        if (requiredPermissions.length > 0) {
-          let userPerms = [];
-          if (user && Array.isArray(user.permissions)) {
-            if (typeof user.permissions[0] === "string") {
-              userPerms = user.permissions;
-            } else if (typeof user.permissions[0] === "object") {
-              userPerms = user.permissions.flatMap((p) =>
-                p.actions && p.module
-                  ? p.actions.map((a) => `${p.module}.${a}`)
-                  : []
-              );
-            }
-          }
-
-          // Admin sempre tem acesso
-          if (userPerms.includes("*") || (user && user.perfil === "admin")) {
-            setHasPermission(true);
-          } else {
-            // Verifica se tem pelo menos uma permissão exigida
-            const allowed = requiredPermissions.some((perm) =>
-              userPerms.includes(perm)
+    if (loadingAuth || loadingUser) return;
+    if (!autenticado) {
+      setHasPermission(false);
+      setLoading(false);
+      return;
+    }
+    if (user) {
+      // Verificar permissões se necessário
+      if (requiredPermissions.length > 0) {
+        let userPerms = [];
+        if (user && Array.isArray(user.permissions)) {
+          if (typeof user.permissions[0] === "string") {
+            userPerms = user.permissions;
+          } else if (typeof user.permissions[0] === "object") {
+            userPerms = user.permissions.flatMap((p) =>
+              p.actions && p.module
+                ? p.actions.map((a) => `${p.module}.${a}`)
+                : []
             );
-
-            if (!allowed) {
-              // Se não tem permissão local, verifica no backend
-              const backendPermission = await checkPermissionsOnBackend(user);
-              setHasPermission(backendPermission);
-            } else {
-              setHasPermission(true);
-            }
           }
-        } else {
+        }
+        // Admin sempre tem acesso
+        if (userPerms.includes("*") || (user && user.perfil === "admin")) {
           setHasPermission(true);
+        } else {
+          // Verifica se tem pelo menos uma permissão exigida
+          const allowed = requiredPermissions.some((perm) =>
+            userPerms.includes(perm)
+          );
+          if (!allowed) {
+            // Se não tem permissão local, verifica no backend
+            checkPermissionsOnBackend(user).then((backendPermission) => {
+              setHasPermission(backendPermission);
+              setLoading(false);
+            });
+            return;
+          } else {
+            setHasPermission(true);
+          }
         }
       } else {
-        setHasPermission(false);
+        setHasPermission(true);
       }
-      setLoading(false);
-    };
-    checkAuth();
-  }, [requiredPermissions]);
+    } else {
+      setHasPermission(false);
+    }
+    setLoading(false);
+  }, [requiredPermissions, autenticado, user, loadingAuth, loadingUser]);
 
   if (loading) return null;
+
+  // Se não está autenticado
+  if (!autenticado) {
+    return <Navigate to="/llogin" replace />;
+  }
 
   // Se está autenticado, mas não tem permissão
   if (!hasPermission) {

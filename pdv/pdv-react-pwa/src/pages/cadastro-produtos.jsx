@@ -35,42 +35,60 @@ import {
 } from "lucide-react";
 import { CSVImportDialog } from "../components/csv-import-dialog.jsx";
 import { calculateComparativePrice } from "../components/unit-converter.js";
+import { useProdutos, useCreateProduto } from "../hooks/useProducts.js";
 import { produtosServices } from "../services/produtosServices.js";
 import { localAuthService } from "../services/localAuthService.js";
+import { ncmService } from "../services/ncmService.js";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "../components/ui/tabs.jsx";
 
 export default function CadastroProdutos() {
   const [searchTerm, setSearchTerm] = useState("");
   const [editingProduct, setEditingProduct] = useState(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  // Atualizar o formData inicial para garantir campos obrigatórios do banco
   const [formData, setFormData] = useState({
-    // Campos básicos
-    name: "",
-    price: "",
-    category: "",
-    barcode: "",
-    requiresWeight: false,
-    unit: "un",
-    icms: "",
-    quantity: "",
-    measureUnit: "un",
-
-    // Campos adicionais da tabela produto
     codigo: "",
     codigo_barras: "",
     descricao: "",
+    descricao_fiscal: "",
     grupo: "",
     ncm: "",
+    cest: "",
+    origem: "",
+    cfop_entrada: "",
+    cfop_saida: "",
+    cst_entrada: "",
+    cst_saida: "",
+    modalidade_bc_icms: "",
+    aliquota_icms: "",
+    aliquota_ipi: "",
+    aliquota_pis: "",
+    aliquota_cofins: "",
+    cst_pis: "",
+    cst_cofins: "",
+    credito_presumido: "",
+    categoria_tributaria: "",
+    cbs: "",
+    ibs: "",
+    ii: "",
+    afrmm_fmm: "",
     preco_custo: "",
     margem_lucro: "",
     preco_venda: "",
     estoque_minimo: "",
     estoque_maximo: "",
     estoque_atual: "",
-    unidade: "un",
+    unidade: "UN",
     controla_estoque: false,
     cfop: "",
     csosn: "",
     cst: "",
+    icms: "",
     ativo: true,
     exibir_tela: true,
     solicita_quantidade: false,
@@ -81,12 +99,20 @@ export default function CadastroProdutos() {
     cst_cofins: "",
     cofins: "",
   });
+  const [ncmError, setNcmError] = useState("");
+  const [isLoadingNcm, setIsLoadingNcm] = useState(false);
+  const [ncmSuccess, setNcmSuccess] = useState(false);
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState("");
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [formErrors, setFormErrors] = useState({});
+
+  // Usar hook para criar produto
+  const { mutateAsync: createProduto, isLoading: creatingProduto } =
+    useCreateProduto();
 
   const searchInputRef = useRef(null);
 
@@ -118,8 +144,8 @@ export default function CadastroProdutos() {
       const valid = await localAuthService.isAuthenticated();
       console.log("valid", valid);
       if (valid) {
-        // // const res = await produtosServices.getProdutos();
-        // setProducts(res.produtos || []);
+        const res = await produtosServices.getProdutos();
+        setProducts(res.produtos || []);
       }
     } catch (err) {
       setError("Erro ao carregar produtos");
@@ -140,42 +166,33 @@ export default function CadastroProdutos() {
       (product.codigo_barras || product.barcode || "").includes(searchTerm)
   );
 
+  // Atualizar a validação para garantir obrigatoriedade e unicidade de codigo e codigo_barras
   const validateForm = (data) => {
     const newErrors = {};
-
-    if (!data.name.trim()) newErrors.name = "Nome é obrigatório";
-    if (!data.price || Number(data.price) <= 0)
-      newErrors.price = "Preço deve ser maior que zero";
-    if (!data.category.trim()) newErrors.category = "Categoria é obrigatória";
-    if (!data.barcode.trim())
-      newErrors.barcode = "Código de barras é obrigatório";
-    if (data.barcode.length < 8)
-      newErrors.barcode = "Código deve ter pelo menos 8 dígitos";
-
-    // Validar ICMS
-    if (data.icms && (Number(data.icms) < 0 || Number(data.icms) > 100)) {
-      newErrors.icms = "ICMS deve estar entre 0 e 100%";
-    }
-
-    // Validar quantidade para comparação
-    if (data.quantity && Number(data.quantity) <= 0) {
-      newErrors.quantity = "Quantidade deve ser maior que zero";
-    }
-
-    // Verificar se código de barras já existe (exceto para edição do mesmo produto)
-    const existingProduct = products.find(
-      (p) => p.barcode === data.barcode && p.id !== editingProduct?.id
+    if (!data.codigo.trim()) newErrors.codigo = "Código interno é obrigatório";
+    if (!data.codigo_barras.trim())
+      newErrors.codigo_barras = "Código de barras é obrigatório";
+    if (!data.descricao.trim()) newErrors.descricao = "Descrição é obrigatória";
+    if (!data.grupo.trim()) newErrors.grupo = "Grupo é obrigatório";
+    if (!data.preco_venda || Number(data.preco_venda) <= 0)
+      newErrors.preco_venda = "Preço de venda deve ser maior que zero";
+    // Unicidade
+    const existingCodigo = products.find(
+      (p) => p.codigo === data.codigo && p.id !== editingProduct?.id
     );
-    if (existingProduct) {
-      newErrors.barcode = "Código de barras já existe";
-    }
-
+    if (existingCodigo) newErrors.codigo = "Código interno já existe";
+    const existingCodBarras = products.find(
+      (p) =>
+        p.codigo_barras === data.codigo_barras && p.id !== editingProduct?.id
+    );
+    if (existingCodBarras)
+      newErrors.codigo_barras = "Código de barras já existe";
     return newErrors;
   };
 
   const handleSave = async () => {
     const newErrors = validateForm(formData);
-    setErrors(newErrors);
+    setFormErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
     setLoading(true);
     setError("");
@@ -183,7 +200,7 @@ export default function CadastroProdutos() {
       const productData = {
         codigo: formData.codigo.trim(),
         codigo_barras: formData.codigo_barras.trim(),
-        descricao: formData.descricao.trim() || formData.name.trim(),
+        descricao: formData.descricao.trim(),
         grupo: formData.grupo.trim(),
         ncm: formData.ncm.trim(),
         preco_custo: formData.preco_custo
@@ -192,7 +209,9 @@ export default function CadastroProdutos() {
         margem_lucro: formData.margem_lucro
           ? Number(formData.margem_lucro)
           : undefined,
-        preco_venda: formData.price ? Number(formData.price) : undefined,
+        preco_venda: formData.preco_venda
+          ? Number(formData.preco_venda)
+          : undefined,
         estoque_minimo: formData.estoque_minimo
           ? Number(formData.estoque_minimo)
           : undefined,
@@ -222,7 +241,7 @@ export default function CadastroProdutos() {
         await produtosServices.updateProduto(editingProduct.id, productData);
         setSuccess("Produto atualizado com sucesso!");
       } else {
-        await produtosServices.createProduto(productData);
+        await createProduto(productData);
         setSuccess("Produto cadastrado com sucesso!");
       }
       await fetchProdutos();
@@ -239,18 +258,6 @@ export default function CadastroProdutos() {
     setEditingProduct(null);
     setShowAddDialog(false);
     setFormData({
-      // Campos básicos
-      name: "",
-      price: "",
-      category: "",
-      barcode: "",
-      requiresWeight: false,
-      unit: "un",
-      icms: "",
-      quantity: "",
-      measureUnit: "un",
-
-      // Campos adicionais da tabela produto
       codigo: "",
       codigo_barras: "",
       descricao: "",
@@ -262,11 +269,12 @@ export default function CadastroProdutos() {
       estoque_minimo: "",
       estoque_maximo: "",
       estoque_atual: "",
-      unidade: "un",
+      unidade: "UN",
       controla_estoque: false,
       cfop: "",
       csosn: "",
       cst: "",
+      icms: "",
       ativo: true,
       exibir_tela: true,
       solicita_quantidade: false,
@@ -278,24 +286,16 @@ export default function CadastroProdutos() {
       cofins: "",
     });
     setErrors({});
+    setNcmError("");
+    setNcmSuccess(false);
+    setIsLoadingNcm(false);
   };
 
   const handleEdit = (product) => {
     setEditingProduct(product);
     setFormData({
-      name: product.name,
-      price: product.price.toString(),
-      category: product.category,
-      barcode: product.barcode,
-      requiresWeight: product.requiresWeight,
-      unit: product.unit,
-      icms: product.icms?.toString(),
-      quantity: product.quantity?.toString(),
-      measureUnit: product.measureUnit,
-
-      // Campos adicionais da tabela produto
       codigo: product.codigo || "",
-      codigo_barras: product.codigo_barras || "",
+      codigo_barras: product.codigo_barras || product.barcode || "",
       descricao: product.descricao || "",
       grupo: product.grupo || "",
       ncm: product.ncm || "",
@@ -305,11 +305,12 @@ export default function CadastroProdutos() {
       estoque_minimo: product.estoque_minimo?.toString() || "",
       estoque_maximo: product.estoque_maximo?.toString() || "",
       estoque_atual: product.estoque_atual?.toString() || "",
-      unidade: product.unidade || "un",
+      unidade: product.unidade || "UN",
       controla_estoque: product.controla_estoque || false,
       cfop: product.cfop || "",
       csosn: product.csosn || "",
       cst: product.cst || "",
+      icms: product.icms?.toString() || "",
       ativo: product.ativo !== undefined ? product.ativo : true,
       exibir_tela:
         product.exibir_tela !== undefined ? product.exibir_tela : true,
@@ -348,18 +349,6 @@ export default function CadastroProdutos() {
   const handleAddNew = () => {
     setEditingProduct(null);
     setFormData({
-      // Campos básicos
-      name: "",
-      price: "",
-      category: "",
-      barcode: "",
-      requiresWeight: false,
-      unit: "un",
-      icms: "",
-      quantity: "",
-      measureUnit: "un",
-
-      // Campos adicionais da tabela produto
       codigo: "",
       codigo_barras: "",
       descricao: "",
@@ -371,11 +360,12 @@ export default function CadastroProdutos() {
       estoque_minimo: "",
       estoque_maximo: "",
       estoque_atual: "",
-      unidade: "un",
+      unidade: "UN",
       controla_estoque: false,
       cfop: "",
       csosn: "",
       cst: "",
+      icms: "",
       ativo: true,
       exibir_tela: true,
       solicita_quantidade: false,
@@ -386,6 +376,9 @@ export default function CadastroProdutos() {
       cst_cofins: "",
       cofins: "",
     });
+    setNcmError("");
+    setNcmSuccess(false);
+    setIsLoadingNcm(false);
     setShowAddDialog(true);
   };
 
@@ -400,6 +393,68 @@ export default function CadastroProdutos() {
     if (price <= 0 || quantity <= 0) return null;
 
     return calculateComparativePrice(price, quantity, formData.measureUnit);
+  };
+
+  // Função para buscar NCM automaticamente
+  const buscarNcmAutomatico = async (codigoNcm) => {
+    // Remover pontos da máscara para obter apenas os dígitos
+    const codigoLimpo = codigoNcm.replace(/\./g, "");
+
+    // Validar se é exatamente 8 dígitos numéricos
+    if (
+      !codigoLimpo ||
+      codigoLimpo.length !== 8 ||
+      !/^\d{8}$/.test(codigoLimpo)
+    ) {
+      setNcmError("");
+      setNcmSuccess(false);
+      return;
+    }
+
+    setIsLoadingNcm(true);
+    setNcmError("");
+    setNcmSuccess(false);
+
+    try {
+      const resultado = await ncmService.buscarNcm(codigoLimpo);
+
+      if (resultado && resultado.ok) {
+        // Preencher automaticamente os campos fiscais
+        setFormData((prev) => ({
+          ...prev,
+          descricao_fiscal: resultado.descricao,
+          cst: resultado.cst,
+          cest: resultado.cest,
+          cfop: resultado.cfop,
+          origem: resultado.origem,
+          csosn: resultado.csosn,
+          modalidade_bc_icms: resultado.modalidade_bc_icms,
+          aliquota_icms: resultado.aliquota_icms,
+          aliquota_ipi: resultado.aliquota_ipi,
+          aliquota_pis: resultado.aliquota_pis,
+          aliquota_cofins: resultado.aliquota_cofins,
+          cst_pis: resultado.cst_pis,
+          cst_cofins: resultado.cst_cofins,
+          // Mapear CFOP para entrada e saída
+          cfop_entrada: resultado.cfop,
+          cfop_saida: resultado.cfop,
+          // Mapear CST para entrada e saída
+          cst_entrada: resultado.cst,
+          cst_saida: resultado.cst,
+        }));
+        setNcmError("");
+        setNcmSuccess(true);
+      } else {
+        setNcmError(resultado?.mensagem || "NCM não encontrado");
+        setNcmSuccess(false);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar NCM:", error);
+      setNcmError("Erro ao buscar NCM. Tente novamente.");
+      setNcmSuccess(false);
+    } finally {
+      setIsLoadingNcm(false);
+    }
   };
 
   const comparativePrice = getComparativePrice();
@@ -552,7 +607,7 @@ export default function CadastroProdutos() {
                                     Código de Barras
                                   </p>
                                   <p className="font-mono text-xs">
-                                    {product.barcode}
+                                    {product.codigo_barras}
                                   </p>
                                 </div>
                                 <div>
@@ -619,634 +674,618 @@ export default function CadastroProdutos() {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-6">
-            {/* Informações Básicas */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg">Informações Básicas</h3>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label htmlFor="name">Nome do Produto *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                    placeholder="Ex: Coca-Cola 350ml"
-                    className={errors.name ? "border-red-500" : ""}
-                  />
-                  {errors.name && (
-                    <p className="text-red-500 text-xs mt-1">{errors.name}</p>
+          <Tabs defaultValue="geral" className="w-full">
+            <TabsList className="mb-4">
+              <TabsTrigger value="geral">Informações Gerais</TabsTrigger>
+              <TabsTrigger value="fiscal">Informações Fiscais</TabsTrigger>
+            </TabsList>
+            <TabsContent value="geral">
+              <div className="space-y-6">
+                {/* Informações Básicas */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg">Informações Básicas</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="codigo">Código Interno *</Label>
+                      <Input
+                        id="codigo"
+                        value={formData.codigo}
+                        onChange={(e) =>
+                          setFormData({ ...formData, codigo: e.target.value })
+                        }
+                        placeholder="Código interno"
+                        className={formErrors.codigo ? "border-red-500" : ""}
+                      />
+                      {formErrors.codigo && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {formErrors.codigo}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="codigo_barras">Código de Barras *</Label>
+                      <Input
+                        id="codigo_barras"
+                        value={formData.codigo_barras}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            codigo_barras: e.target.value,
+                          })
+                        }
+                        placeholder="Ex: 7894900011517"
+                        className={
+                          formErrors.codigo_barras ? "border-red-500" : ""
+                        }
+                      />
+                      {formErrors.codigo_barras && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {formErrors.codigo_barras}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="descricao">Descrição *</Label>
+                      <Input
+                        id="descricao"
+                        value={formData.descricao}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            descricao: e.target.value,
+                          })
+                        }
+                        placeholder="Descrição detalhada do produto"
+                        className={formErrors.descricao ? "border-red-500" : ""}
+                      />
+                      {formErrors.descricao && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {formErrors.descricao}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="grupo">Grupo *</Label>
+                      <Input
+                        id="grupo"
+                        value={formData.grupo}
+                        onChange={(e) =>
+                          setFormData({ ...formData, grupo: e.target.value })
+                        }
+                        placeholder="Grupo do produto"
+                        className={formErrors.grupo ? "border-red-500" : ""}
+                      />
+                      {formErrors.grupo && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {formErrors.grupo}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <Separator />
+                {/* Informações de Preço */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg">
+                    Informações de Preço
+                  </h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label htmlFor="preco_custo">Preço de Custo</Label>
+                      <Input
+                        id="preco_custo"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.preco_custo}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            preco_custo: e.target.value,
+                          })
+                        }
+                        placeholder="0,00"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="margem_lucro">Margem de Lucro (%)</Label>
+                      <Input
+                        id="margem_lucro"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.margem_lucro}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            margem_lucro: e.target.value,
+                          })
+                        }
+                        placeholder="0,00"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="preco_venda">Preço de Venda *</Label>
+                      <Input
+                        id="preco_venda"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.preco_venda}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            preco_venda: e.target.value,
+                          })
+                        }
+                        placeholder="0,00"
+                        className={
+                          formErrors.preco_venda ? "border-red-500" : ""
+                        }
+                      />
+                      {formErrors.preco_venda && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {formErrors.preco_venda}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <Separator />
+                {/* Informações de Estoque */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg">
+                    Informações de Estoque
+                  </h3>
+                  <div className="flex items-center space-x-2 mb-4">
+                    <input
+                      type="checkbox"
+                      id="controla_estoque"
+                      checked={formData.controla_estoque}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          controla_estoque: e.target.checked,
+                        })
+                      }
+                      className="rounded"
+                    />
+                    <Label htmlFor="controla_estoque">Controlar Estoque</Label>
+                  </div>
+                  {formData.controla_estoque && (
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <Label htmlFor="estoque_minimo">Estoque Mínimo</Label>
+                        <Input
+                          id="estoque_minimo"
+                          type="number"
+                          min="0"
+                          value={formData.estoque_minimo}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              estoque_minimo: e.target.value,
+                            })
+                          }
+                          placeholder="0"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="estoque_maximo">Estoque Máximo</Label>
+                        <Input
+                          id="estoque_maximo"
+                          type="number"
+                          min="0"
+                          value={formData.estoque_maximo}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              estoque_maximo: e.target.value,
+                            })
+                          }
+                          placeholder="0"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="estoque_atual">Estoque Atual</Label>
+                        <Input
+                          id="estoque_atual"
+                          type="number"
+                          min="0"
+                          value={formData.estoque_atual}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              estoque_atual: e.target.value,
+                            })
+                          }
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
                   )}
                 </div>
-
-                <div>
-                  <Label htmlFor="descricao">Descrição</Label>
-                  <Input
-                    id="descricao"
-                    value={formData.descricao}
-                    onChange={(e) =>
-                      setFormData({ ...formData, descricao: e.target.value })
-                    }
-                    placeholder="Descrição detalhada do produto"
-                  />
-                </div>
               </div>
+            </TabsContent>
+            <TabsContent value="fiscal">
+              <div className="space-y-6">
+                <h3 className="font-semibold text-lg">Informações Fiscais</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="descricao_fiscal">
+                      Descrição Fiscal Completa
+                    </Label>
+                    <Input
+                      id="descricao_fiscal"
+                      value={formData.descricao_fiscal}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          descricao_fiscal: e.target.value,
+                        })
+                      }
+                      placeholder="Nome, marca, variação, embalagem..."
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="ncm">NCM (8 dígitos)</Label>
+                    <div className="relative">
+                      <Input
+                        id="ncm"
+                        value={formData.ncm}
+                        onChange={(e) => {
+                          // Aceitar apenas números e pontos
+                          let value = e.target.value.replace(/[^\d.]/g, "");
 
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Label htmlFor="codigo">Código Interno</Label>
-                  <Input
-                    id="codigo"
-                    value={formData.codigo}
-                    onChange={(e) =>
-                      setFormData({ ...formData, codigo: e.target.value })
-                    }
-                    placeholder="Código interno"
-                  />
-                </div>
+                          // Aplicar máscara NCM: 0000.00.00
+                          if (value.length > 0) {
+                            // Remover pontos existentes para recalcular
+                            value = value.replace(/\./g, "");
 
-                <div>
-                  <Label htmlFor="codigo_barras">Código de Barras</Label>
-                  <Input
-                    id="codigo_barras"
-                    value={formData.codigo_barras}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        codigo_barras: e.target.value,
-                      })
-                    }
-                    placeholder="Código de barras"
-                  />
-                </div>
+                            // Aplicar máscara
+                            if (value.length <= 4) {
+                              value = value;
+                            } else if (value.length <= 6) {
+                              value = value.slice(0, 4) + "." + value.slice(4);
+                            } else {
+                              value =
+                                value.slice(0, 4) +
+                                "." +
+                                value.slice(4, 6) +
+                                "." +
+                                value.slice(6, 8);
+                            }
+                          }
 
-                <div>
-                  <Label htmlFor="barcode">
-                    Código de Barras (Principal) *
-                  </Label>
-                  <Input
-                    id="barcode"
-                    value={formData.barcode}
-                    onChange={(e) =>
-                      setFormData({ ...formData, barcode: e.target.value })
-                    }
-                    placeholder="Ex: 7894900011517"
-                    className={errors.barcode ? "border-red-500" : ""}
-                  />
-                  {errors.barcode && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.barcode}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label htmlFor="category">Categoria *</Label>
-                  <select
-                    id="category"
-                    value={formData.category}
-                    onChange={(e) =>
-                      setFormData({ ...formData, category: e.target.value })
-                    }
-                    className={`w-full p-2 border rounded-md ${
-                      errors.category ? "border-red-500" : ""
-                    }`}
-                  >
-                    <option value="">Selecione...</option>
-                    {categories.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
+                          // Limitar a 10 caracteres (8 dígitos + 2 pontos)
+                          const limitedValue = value.slice(0, 10);
+                          setFormData({ ...formData, ncm: limitedValue });
+                        }}
+                        onBlur={(e) => buscarNcmAutomatico(e.target.value)}
+                        placeholder="0000.00.00"
+                        maxLength={10}
+                        className={`${ncmError ? "border-red-500" : ""} ${
+                          ncmSuccess ? "border-green-500" : ""
+                        }`}
+                      />
+                      {isLoadingNcm && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                        </div>
+                      )}
+                      {ncmSuccess && !isLoadingNcm && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                        </div>
+                      )}
+                    </div>
+                    {ncmError && (
+                      <p className="text-red-500 text-xs mt-1">{ncmError}</p>
+                    )}
+                    {ncmSuccess && (
+                      <p className="text-green-600 text-xs mt-1">
+                        NCM encontrado! Campos fiscais preenchidos
+                        automaticamente.
+                      </p>
+                    )}
+                    {formData.ncm &&
+                      formData.ncm.replace(/\./g, "").length < 8 && (
+                        <p className="text-blue-500 text-xs mt-1">
+                          Digite os 8 dígitos do NCM (formato: 0000.00.00) para
+                          busca automática
+                        </p>
+                      )}
+                  </div>
+                  <div>
+                    <Label htmlFor="cest">CEST (7 dígitos)</Label>
+                    <Input
+                      id="cest"
+                      value={formData.cest}
+                      onChange={(e) =>
+                        setFormData({ ...formData, cest: e.target.value })
+                      }
+                      placeholder="Código CEST"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="origem">Origem do Produto</Label>
+                    <select
+                      id="origem"
+                      value={formData.origem}
+                      onChange={(e) =>
+                        setFormData({ ...formData, origem: e.target.value })
+                      }
+                      className="w-full p-2 border rounded-md"
+                    >
+                      <option value="">Selecione...</option>
+                      <option value="0">0 - Nacional</option>
+                      <option value="1">
+                        1 - Estrangeira - Importação direta
                       </option>
-                    ))}
-                  </select>
-                  {errors.category && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.category}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <Label htmlFor="grupo">Grupo</Label>
-                  <Input
-                    id="grupo"
-                    value={formData.grupo}
-                    onChange={(e) =>
-                      setFormData({ ...formData, grupo: e.target.value })
-                    }
-                    placeholder="Grupo do produto"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Informações de Preço */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg">Informações de Preço</h3>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Label htmlFor="preco_custo">Preço de Custo</Label>
-                  <Input
-                    id="preco_custo"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.preco_custo}
-                    onChange={(e) =>
-                      setFormData({ ...formData, preco_custo: e.target.value })
-                    }
-                    placeholder="0,00"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="margem_lucro">Margem de Lucro (%)</Label>
-                  <Input
-                    id="margem_lucro"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.margem_lucro}
-                    onChange={(e) =>
-                      setFormData({ ...formData, margem_lucro: e.target.value })
-                    }
-                    placeholder="0,00"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="price">Preço de Venda *</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.price}
-                    onChange={(e) =>
-                      setFormData({ ...formData, price: e.target.value })
-                    }
-                    placeholder="0,00"
-                    className={errors.price ? "border-red-500" : ""}
-                  />
-                  {errors.price && (
-                    <p className="text-red-500 text-xs mt-1">{errors.price}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Informações de Estoque */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg">Informações de Estoque</h3>
-
-              <div className="flex items-center space-x-2 mb-4">
-                <input
-                  type="checkbox"
-                  id="controla_estoque"
-                  checked={formData.controla_estoque}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      controla_estoque: e.target.checked,
-                    })
-                  }
-                  className="rounded"
-                />
-                <Label htmlFor="controla_estoque">Controlar Estoque</Label>
-              </div>
-
-              {formData.controla_estoque && (
-                <div className="grid grid-cols-3 gap-3">
+                      <option value="2">
+                        2 - Estrangeira - Adquirida no mercado interno
+                      </option>
+                    </select>
+                  </div>
                   <div>
-                    <Label htmlFor="estoque_minimo">Estoque Mínimo</Label>
+                    <Label htmlFor="cfop_entrada">
+                      CFOP Entrada (4 dígitos)
+                    </Label>
                     <Input
-                      id="estoque_minimo"
-                      type="number"
-                      min="0"
-                      value={formData.estoque_minimo}
+                      id="cfop_entrada"
+                      value={formData.cfop_entrada}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          estoque_minimo: e.target.value,
+                          cfop_entrada: e.target.value,
                         })
                       }
-                      placeholder="0"
+                      placeholder="CFOP Entrada"
                     />
                   </div>
-
                   <div>
-                    <Label htmlFor="estoque_maximo">Estoque Máximo</Label>
+                    <Label htmlFor="cfop_saida">CFOP Saída (4 dígitos)</Label>
                     <Input
-                      id="estoque_maximo"
-                      type="number"
-                      min="0"
-                      value={formData.estoque_maximo}
+                      id="cfop_saida"
+                      value={formData.cfop_saida}
+                      onChange={(e) =>
+                        setFormData({ ...formData, cfop_saida: e.target.value })
+                      }
+                      placeholder="CFOP Saída"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="cst_entrada">CST/CSOSN Entrada</Label>
+                    <Input
+                      id="cst_entrada"
+                      value={formData.cst_entrada}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          estoque_maximo: e.target.value,
+                          cst_entrada: e.target.value,
                         })
                       }
-                      placeholder="0"
+                      placeholder="CST/CSOSN Entrada"
                     />
                   </div>
-
                   <div>
-                    <Label htmlFor="estoque_atual">Estoque Atual</Label>
+                    <Label htmlFor="cst_saida">CST/CSOSN Saída</Label>
                     <Input
-                      id="estoque_atual"
-                      type="number"
-                      min="0"
-                      value={formData.estoque_atual}
+                      id="cst_saida"
+                      value={formData.cst_saida}
+                      onChange={(e) =>
+                        setFormData({ ...formData, cst_saida: e.target.value })
+                      }
+                      placeholder="CST/CSOSN Saída"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="modalidade_bc_icms">
+                      Modalidade BC ICMS
+                    </Label>
+                    <Input
+                      id="modalidade_bc_icms"
+                      value={formData.modalidade_bc_icms}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          estoque_atual: e.target.value,
+                          modalidade_bc_icms: e.target.value,
                         })
                       }
-                      placeholder="0"
+                      placeholder="Margem, Pauta, Valor da Operação..."
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="aliquota_icms">Alíquota ICMS (%)</Label>
+                    <Input
+                      id="aliquota_icms"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.aliquota_icms}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          aliquota_icms: e.target.value,
+                        })
+                      }
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="aliquota_ipi">Alíquota IPI (%)</Label>
+                    <Input
+                      id="aliquota_ipi"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.aliquota_ipi}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          aliquota_ipi: e.target.value,
+                        })
+                      }
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="aliquota_pis">Alíquota PIS (%)</Label>
+                    <Input
+                      id="aliquota_pis"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.aliquota_pis}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          aliquota_pis: e.target.value,
+                        })
+                      }
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="aliquota_cofins">Alíquota COFINS (%)</Label>
+                    <Input
+                      id="aliquota_cofins"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.aliquota_cofins}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          aliquota_cofins: e.target.value,
+                        })
+                      }
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="cst_pis">CST PIS</Label>
+                    <Input
+                      id="cst_pis"
+                      value={formData.cst_pis}
+                      onChange={(e) =>
+                        setFormData({ ...formData, cst_pis: e.target.value })
+                      }
+                      placeholder="CST PIS"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="cst_cofins">CST COFINS</Label>
+                    <Input
+                      id="cst_cofins"
+                      value={formData.cst_cofins}
+                      onChange={(e) =>
+                        setFormData({ ...formData, cst_cofins: e.target.value })
+                      }
+                      placeholder="CST COFINS"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="credito_presumido">
+                      Crédito Presumido (código/%):
+                    </Label>
+                    <Input
+                      id="credito_presumido"
+                      value={formData.credito_presumido}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          credito_presumido: e.target.value,
+                        })
+                      }
+                      placeholder="Código ou percentual"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="categoria_tributaria">
+                      Categoria Tributária / CNAE
+                    </Label>
+                    <Input
+                      id="categoria_tributaria"
+                      value={formData.categoria_tributaria}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          categoria_tributaria: e.target.value,
+                        })
+                      }
+                      placeholder="Categoria tributária ou CNAE"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="cbs">CBS (%) (futuro)</Label>
+                    <Input
+                      id="cbs"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.cbs}
+                      onChange={(e) =>
+                        setFormData({ ...formData, cbs: e.target.value })
+                      }
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="ibs">IBS (%) (futuro)</Label>
+                    <Input
+                      id="ibs"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.ibs}
+                      onChange={(e) =>
+                        setFormData({ ...formData, ibs: e.target.value })
+                      }
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="ii">II (%) (Importação)</Label>
+                    <Input
+                      id="ii"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.ii}
+                      onChange={(e) =>
+                        setFormData({ ...formData, ii: e.target.value })
+                      }
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="afrmm_fmm">AFRMM/FMM (Importação)</Label>
+                    <Input
+                      id="afrmm_fmm"
+                      value={formData.afrmm_fmm}
+                      onChange={(e) =>
+                        setFormData({ ...formData, afrmm_fmm: e.target.value })
+                      }
+                      placeholder="Taxa logística"
                     />
                   </div>
                 </div>
-              )}
-            </div>
-
-            <Separator />
-
-            {/* Informações Fiscais */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg">Informações Fiscais</h3>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Label htmlFor="ncm">NCM</Label>
-                  <Input
-                    id="ncm"
-                    value={formData.ncm}
-                    onChange={(e) =>
-                      setFormData({ ...formData, ncm: e.target.value })
-                    }
-                    placeholder="Código NCM"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="cfop">CFOP</Label>
-                  <Input
-                    id="cfop"
-                    value={formData.cfop}
-                    onChange={(e) =>
-                      setFormData({ ...formData, cfop: e.target.value })
-                    }
-                    placeholder="Código CFOP"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="cest">CEST</Label>
-                  <Input
-                    id="cest"
-                    value={formData.cest}
-                    onChange={(e) =>
-                      setFormData({ ...formData, cest: e.target.value })
-                    }
-                    placeholder="Código CEST"
-                  />
-                </div>
               </div>
+            </TabsContent>
+          </Tabs>
 
-              <div className="grid grid-cols-4 gap-3">
-                <div>
-                  <Label htmlFor="csosn">CSOSN</Label>
-                  <Input
-                    id="csosn"
-                    value={formData.csosn}
-                    onChange={(e) =>
-                      setFormData({ ...formData, csosn: e.target.value })
-                    }
-                    placeholder="CSOSN"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="cst">CST</Label>
-                  <Input
-                    id="cst"
-                    value={formData.cst}
-                    onChange={(e) =>
-                      setFormData({ ...formData, cst: e.target.value })
-                    }
-                    placeholder="CST"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="icms">ICMS (%)</Label>
-                  <Input
-                    id="icms"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    value={formData.icms}
-                    onChange={(e) =>
-                      setFormData({ ...formData, icms: e.target.value })
-                    }
-                    placeholder="0,00"
-                    className={errors.icms ? "border-red-500" : ""}
-                  />
-                  {errors.icms && (
-                    <p className="text-red-500 text-xs mt-1">{errors.icms}</p>
-                  )}
-                </div>
-
-                <div>
-                  <Label htmlFor="pis">PIS (%)</Label>
-                  <Input
-                    id="pis"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.pis}
-                    onChange={(e) =>
-                      setFormData({ ...formData, pis: e.target.value })
-                    }
-                    placeholder="0,00"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Label htmlFor="cst_pis">CST PIS</Label>
-                  <Input
-                    id="cst_pis"
-                    value={formData.cst_pis}
-                    onChange={(e) =>
-                      setFormData({ ...formData, cst_pis: e.target.value })
-                    }
-                    placeholder="CST PIS"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="cst_cofins">CST COFINS</Label>
-                  <Input
-                    id="cst_cofins"
-                    value={formData.cst_cofins}
-                    onChange={(e) =>
-                      setFormData({ ...formData, cst_cofins: e.target.value })
-                    }
-                    placeholder="CST COFINS"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="cofins">COFINS (%)</Label>
-                  <Input
-                    id="cofins"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.cofins}
-                    onChange={(e) =>
-                      setFormData({ ...formData, cofins: e.target.value })
-                    }
-                    placeholder="0,00"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Configurações de Venda */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg">Configurações de Venda</h3>
-
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="requiresWeight"
-                  checked={formData.requiresWeight}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      requiresWeight: e.target.checked,
-                      unit: e.target.checked ? "kg" : "un",
-                    })
-                  }
-                  className="rounded"
-                />
-                <Label
-                  htmlFor="requiresWeight"
-                  className="flex items-center gap-2"
-                >
-                  <Scale className="w-4 h-4" />
-                  Produto vendido por peso
-                </Label>
-              </div>
-
-              {!formData.requiresWeight && (
-                <div>
-                  <Label htmlFor="unit">Unidade de Venda</Label>
-                  <select
-                    id="unit"
-                    value={formData.unit}
-                    onChange={(e) =>
-                      setFormData({ ...formData, unit: e.target.value })
-                    }
-                    className="w-full p-2 border rounded-md"
-                  >
-                    <option value="un">Unidade</option>
-                    <option value="cx">Caixa</option>
-                    <option value="pct">Pacote</option>
-                    <option value="lt">Litro</option>
-                    <option value="ml">Mililitro</option>
-                  </select>
-                </div>
-              )}
-
-              <div className="grid grid-cols-3 gap-3">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="ativo"
-                    checked={formData.ativo}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        ativo: e.target.checked,
-                      })
-                    }
-                    className="rounded"
-                  />
-                  <Label htmlFor="ativo">Produto Ativo</Label>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="exibir_tela"
-                    checked={formData.exibir_tela}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        exibir_tela: e.target.checked,
-                      })
-                    }
-                    className="rounded"
-                  />
-                  <Label htmlFor="exibir_tela">Exibir na Tela</Label>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="solicita_quantidade"
-                    checked={formData.solicita_quantidade}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        solicita_quantidade: e.target.checked,
-                      })
-                    }
-                    className="rounded"
-                  />
-                  <Label htmlFor="solicita_quantidade">
-                    Solicitar Quantidade
-                  </Label>
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="permitir_combinacao"
-                  checked={formData.permitir_combinacao}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      permitir_combinacao: e.target.checked,
-                    })
-                  }
-                  className="rounded"
-                />
-                <Label htmlFor="permitir_combinacao">Permitir Combinação</Label>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Comparação de Preços */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Calculator className="w-5 h-5" />
-                <h3 className="font-semibold text-lg">Comparação de Preços</h3>
-              </div>
-              <p className="text-sm text-gray-600">
-                Configure a quantidade e unidade para mostrar comparação de
-                preços nas etiquetas
-              </p>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label htmlFor="quantity">Quantidade do Produto</Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    step="0.001"
-                    min="0"
-                    value={formData.quantity}
-                    onChange={(e) =>
-                      setFormData({ ...formData, quantity: e.target.value })
-                    }
-                    placeholder="Ex: 350 (para 350ml)"
-                    className={errors.quantity ? "border-red-500" : ""}
-                  />
-                  {errors.quantity && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.quantity}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <Label htmlFor="measureUnit">Unidade de Medida</Label>
-                  <select
-                    id="measureUnit"
-                    value={formData.measureUnit}
-                    onChange={(e) =>
-                      setFormData({ ...formData, measureUnit: e.target.value })
-                    }
-                    className="w-full p-2 border rounded-md"
-                  >
-                    <optgroup label="Volume">
-                      <option value="ml">Mililitro (ml)</option>
-                      <option value="cl">Centilitro (cl)</option>
-                      <option value="dl">Decilitro (dl)</option>
-                      <option value="l">Litro (l)</option>
-                    </optgroup>
-                    <optgroup label="Peso">
-                      <option value="mg">Miligrama (mg)</option>
-                      <option value="g">Grama (g)</option>
-                      <option value="kg">Quilograma (kg)</option>
-                    </optgroup>
-                    <optgroup label="Outros">
-                      <option value="un">Unidade</option>
-                      <option value="pct">Pacote</option>
-                      <option value="cx">Caixa</option>
-                    </optgroup>
-                  </select>
-                </div>
-              </div>
-
-              {/* Preview da Comparação */}
-              {comparativePrice && comparativePrice.comparison && (
-                <Alert className="border-blue-200 bg-blue-50">
-                  <Calculator className="h-4 w-4 text-blue-600" />
-                  <AlertDescription className="text-blue-800">
-                    <strong>Preview da Etiqueta:</strong>
-                    <br />
-                    {formData.name} - R$ {formData.price}
-                    <br />
-                    <span className="text-sm">
-                      {comparativePrice.comparison}
-                    </span>
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded">
-                <strong>Exemplos:</strong>
-                <br />• Coca-Cola 350ml → Mostra preço por litro
-                <br />• Arroz 1kg → Mostra preço por kg
-                <br />• Sabão 500g → Mostra preço por kg
-                <br />• Deixe em branco se não quiser comparação
-              </div>
-            </div>
-
-            <Separator />
-
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={handleCancel}>
-                <X className="w-4 h-4 mr-2" />
-                Cancelar
-              </Button>
-              <Button onClick={handleSave}>
-                <Save className="w-4 h-4 mr-2" />
-                {editingProduct ? "Atualizar" : "Cadastrar"}
-              </Button>
-            </div>
+          <div className="flex gap-2 justify-end mt-6">
+            <Button variant="outline" onClick={handleCancel}>
+              <X className="w-4 h-4 mr-2" />
+              Cancelar
+            </Button>
+            <Button onClick={handleSave}>
+              <Save className="w-4 h-4 mr-2" />
+              {editingProduct ? "Atualizar" : "Cadastrar"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -40,7 +40,7 @@ SELECT * FROM (
     'admin@dominio.com' AS email,
     '$2a$10$yjkeg.NF9hK0sxQ/P5CLo.LdhE9B3U1fwXTOLYlB7VrKgN/lccgvi' AS senha, -- hash de admin123
     'admin' AS perfil,
-    '["pdv.products"]' AS permissions,
+    '["pdv.products", "pdv.authorize", "pdv.operate", "pdv.reports", "pdv.cash", "pdv.labels"]' AS permissions,
     1 AS ativo
 ) AS tmp
 WHERE NOT EXISTS (
@@ -162,10 +162,9 @@ CREATE TABLE IF NOT EXISTS configuracao (
     PRIMARY KEY(`id`)
 );
 CREATE TABLE IF NOT EXISTS produto (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `codigo` VARCHAR(13) UNIQUE NOT NULL PRIMARY KEY,
   `id_loja` VARCHAR(36) NOT NULL,
-  `codigo` VARCHAR(50) UNIQUE NOT NULL,
-  `codigo_barras` VARCHAR(100) UNIQUE NOT NULL,
+  `codigo_barras` VARCHAR(13) UNIQUE NOT NULL,
   `descricao` VARCHAR(255),
   `grupo` VARCHAR(100) NOT NULL,
   `ncm` VARCHAR(20),
