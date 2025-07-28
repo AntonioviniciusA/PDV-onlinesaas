@@ -445,20 +445,295 @@ CREATE TABLE IF NOT EXISTS configuracoes_sistema (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `id_loja` VARCHAR(36) NOT NULL,
   `link_api_cupom` VARCHAR(255) NOT NULL,
+  `timezone` VARCHAR(50) DEFAULT 'America/Sao_Paulo',
   `atualizado_em` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 INSERT INTO configuracoes_sistema (
   id_loja,
-  link_api_cupom
+  link_api_cupom,
+  timezone
 )
 SELECT * FROM (
   SELECT
     '00000000-0000-0000-0000-000000000000' AS id_loja,
-    'http://localhost:3000/api/cupom' AS link_api_cupom
+    'http://localhost:3000/api/cupom' AS link_api_cupom,
+    'America/Sao_Paulo' AS timezone
 ) AS tmp
 WHERE NOT EXISTS (
   SELECT 1 FROM configuracoes_sistema WHERE id_loja = '00000000-0000-0000-0000-000000000000'
+);
+
+-- Inserir caixa de exemplo
+INSERT INTO caixas (
+  id_loja,
+  caixa_numero,
+  status,
+  valor_inicial,
+  token,
+  abertura_usuario_id,
+  operador_usuario_id
+)
+SELECT * FROM (
+  SELECT
+    '00000000-0000-0000-0000-000000000000' AS id_loja,
+    1 AS caixa_numero,
+    'aberto' AS status,
+    100.00 AS valor_inicial,
+    '12345678901234567890' AS token,
+    1 AS abertura_usuario_id,
+    1 AS operador_usuario_id
+) AS tmp
+WHERE NOT EXISTS (
+  SELECT 1 FROM caixas WHERE caixa_numero = 1 AND id_loja = '00000000-0000-0000-0000-000000000000'
+);
+INSERT INTO caixas (
+  id_loja,
+  caixa_numero,
+  status,
+  valor_inicial,
+  token,
+  abertura_usuario_id,
+  operador_usuario_id
+)
+SELECT * FROM (
+  SELECT
+    '00000000-0000-0000-0000-000000000000' AS id_loja,
+    2 AS caixa_numero,
+    'aberto' AS status,
+    100.00 AS valor_inicial,
+    '12345678901234567880' AS token,
+    1 AS abertura_usuario_id,
+    1 AS operador_usuario_id
+) AS tmp
+WHERE NOT EXISTS (
+  SELECT 1 FROM caixas WHERE caixa_numero = 2 AND id_loja = '00000000-0000-0000-0000-000000000000'
+);
+-- Inserir vendas de exemplo
+INSERT INTO vendas (
+  id_loja,
+  id_integracao,
+  id_caixa,
+  operador_usuario_id,
+  data,
+  total,
+  desconto,
+  status,
+  tipo,
+  forma_pagamento
+)
+SELECT * FROM (
+  SELECT
+    '00000000-0000-0000-0000-000000000000' AS id_loja,
+    'VDA001' AS id_integracao,
+    1 AS id_caixa,
+    1 AS operador_usuario_id,
+    CURDATE() AS data,
+    17.90 AS total,
+    0.00 AS desconto,
+    'pago' AS status,
+    'venda' AS tipo,
+    'pix' AS forma_pagamento
+) AS tmp
+WHERE NOT EXISTS (
+  SELECT 1 FROM vendas WHERE id_integracao = 'VDA001'
+);
+
+INSERT INTO vendas (
+  id_loja,
+  id_integracao,
+  id_caixa,
+  operador_usuario_id,
+  data,
+  total,
+  desconto,
+  status,
+  tipo,
+  forma_pagamento
+)
+SELECT * FROM (
+  SELECT
+    '00000000-0000-0000-0000-000000000000' AS id_loja,
+    'VDA002' AS id_integracao,
+    1 AS id_caixa,
+    2 AS operador_usuario_id,
+    CURDATE() AS data,
+    54.10 AS total,
+    2.70 AS desconto,
+    'pago' AS status,
+    'venda' AS tipo,
+    'cartao' AS forma_pagamento
+) AS tmp
+WHERE NOT EXISTS (
+  SELECT 1 FROM vendas WHERE id_integracao = 'VDA002'
+);
+
+INSERT INTO vendas (
+  id_loja,
+  id_integracao,
+  id_caixa,
+  operador_usuario_id,
+  data,
+  total,
+  desconto,
+  status,
+  tipo,
+  forma_pagamento
+)
+SELECT * FROM (
+  SELECT
+    '00000000-0000-0000-0000-000000000000' AS id_loja,
+    'VDA003' AS id_integracao,
+    2 AS id_caixa,
+    1 AS operador_usuario_id,
+    CURDATE() AS data,
+    11.10 AS total,
+    0.00 AS desconto,
+    'pago' AS status,
+    'venda' AS tipo,
+    'dinheiro' AS forma_pagamento
+) AS tmp
+WHERE NOT EXISTS (
+  SELECT 1 FROM vendas WHERE id_integracao = 'VDA003'
+);
+
+-- Inserir itens das vendas
+INSERT INTO venda_itens (
+  id_loja,
+  venda_id,
+  produto_codigo,
+  descricao,
+  quantidade,
+  valor_unitario,
+  valor_total
+)
+SELECT * FROM (
+  SELECT
+    '00000000-0000-0000-0000-000000000000' AS id_loja,
+    (SELECT id FROM vendas WHERE id_integracao = 'VDA001') AS venda_id,
+    '000000000001' AS produto_codigo,
+    'Coca-Cola 350ml' AS descricao,
+    2 AS quantidade,
+    4.50 AS valor_unitario,
+    9.00 AS valor_total
+) AS tmp
+WHERE NOT EXISTS (
+  SELECT 1 FROM venda_itens WHERE venda_id = (SELECT id FROM vendas WHERE id_integracao = 'VDA001') AND produto_codigo = '000000000001'
+);
+
+INSERT INTO venda_itens (
+  id_loja,
+  venda_id,
+  produto_codigo,
+  descricao,
+  quantidade,
+  valor_unitario,
+  valor_total
+)
+SELECT * FROM (
+  SELECT
+    '00000000-0000-0000-0000-000000000000' AS id_loja,
+    (SELECT id FROM vendas WHERE id_integracao = 'VDA001') AS venda_id,
+    '000000000002' AS produto_codigo,
+    'Pão Francês (kg)' AS descricao,
+    1 AS quantidade,
+    8.90 AS valor_unitario,
+    8.90 AS valor_total
+) AS tmp
+WHERE NOT EXISTS (
+  SELECT 1 FROM venda_itens WHERE venda_id = (SELECT id FROM vendas WHERE id_integracao = 'VDA001') AND produto_codigo = '000000000002'
+);
+
+INSERT INTO venda_itens (
+  id_loja,
+  venda_id,
+  produto_codigo,
+  descricao,
+  quantidade,
+  valor_unitario,
+  valor_total
+)
+SELECT * FROM (
+  SELECT
+    '00000000-0000-0000-0000-000000000000' AS id_loja,
+    (SELECT id FROM vendas WHERE id_integracao = 'VDA002') AS venda_id,
+    '000000000003' AS produto_codigo,
+    'Leite Integral 1L' AS descricao,
+    3 AS quantidade,
+    5.20 AS valor_unitario,
+    15.60 AS valor_total
+) AS tmp
+WHERE NOT EXISTS (
+  SELECT 1 FROM venda_itens WHERE venda_id = (SELECT id FROM vendas WHERE id_integracao = 'VDA002') AND produto_codigo = '000000000003'
+);
+
+INSERT INTO venda_itens (
+  id_loja,
+  venda_id,
+  produto_codigo,
+  descricao,
+  quantidade,
+  valor_unitario,
+  valor_total
+)
+SELECT * FROM (
+  SELECT
+    '00000000-0000-0000-0000-000000000000' AS id_loja,
+    (SELECT id FROM vendas WHERE id_integracao = 'VDA002') AS venda_id,
+    '000000000002' AS produto_codigo,
+    'Pão Francês (kg)' AS descricao,
+    2 AS quantidade,
+    8.90 AS valor_unitario,
+    17.80 AS valor_total
+) AS tmp
+WHERE NOT EXISTS (
+  SELECT 1 FROM venda_itens WHERE venda_id = (SELECT id FROM vendas WHERE id_integracao = 'VDA002') AND produto_codigo = '000000000002'
+);
+
+INSERT INTO venda_itens (
+  id_loja,
+  venda_id,
+  produto_codigo,
+  descricao,
+  quantidade,
+  valor_unitario,
+  valor_total
+)
+SELECT * FROM (
+  SELECT
+    '00000000-0000-0000-0000-000000000000' AS id_loja,
+    (SELECT id FROM vendas WHERE id_integracao = 'VDA003') AS venda_id,
+    '000000000001' AS produto_codigo,
+    'Coca-Cola 350ml' AS descricao,
+    1 AS quantidade,
+    4.50 AS valor_unitario,
+    4.50 AS valor_total
+) AS tmp
+WHERE NOT EXISTS (
+  SELECT 1 FROM venda_itens WHERE venda_id = (SELECT id FROM vendas WHERE id_integracao = 'VDA003') AND produto_codigo = '000000000001'
+);
+
+INSERT INTO venda_itens (
+  id_loja,
+  venda_id,
+  produto_codigo,
+  descricao,
+  quantidade,
+  valor_unitario,
+  valor_total
+)
+SELECT * FROM (
+  SELECT
+    '00000000-0000-0000-0000-000000000000' AS id_loja,
+    (SELECT id FROM vendas WHERE id_integracao = 'VDA003') AS venda_id,
+    '000000000003' AS produto_codigo,
+    'Leite Integral 1L' AS descricao,
+    1 AS quantidade,
+    5.20 AS valor_unitario,
+    5.20 AS valor_total
+) AS tmp
+WHERE NOT EXISTS (
+  SELECT 1 FROM venda_itens WHERE venda_id = (SELECT id FROM vendas WHERE id_integracao = 'VDA003') AND produto_codigo = '000000000003'
 );
 
 

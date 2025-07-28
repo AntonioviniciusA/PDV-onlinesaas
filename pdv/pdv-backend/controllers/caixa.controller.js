@@ -1,5 +1,9 @@
 const { pool } = require("../config/database.js");
 const bcrypt = require("bcryptjs");
+const {
+  formatDateTimeInTimezone,
+  getCurrentUTCDate,
+} = require("../utils/timezoneUtils.js");
 const LIMITE_CAIXAS_ABERTOS = 3; // Altere aqui se quiser outro limite
 
 const abrirCaixa = async (req, res) => {
@@ -379,52 +383,150 @@ const verificaCaixaAberto = async (req, res) => {
 
 const getHistoricoCaixas = async (req, res) => {
   let connection;
-  const { caixa } = req.body;
-  const { n_venda, data, forma_pagamento } = req.query; // Use req.query em vez de req.params
-
   try {
+    const { n_venda, data, forma_pagamento, caixa_operacao } = req.query;
+
+    if (!req.user || !req.user.id_loja) {
+      return res.status(400).json({
+        sucesso: false,
+        mensagem: "Usuário não autenticado ou sem loja",
+      });
+    }
+
     connection = await pool.getConnection();
 
-    // Início da query base
-    let queryVendas = "SELECT * FROM vendas WHERE caixa_id = ? AND id_loja = ?";
-    let queryPagamentos =
-      "SELECT * FROM pagamentos WHERE caixa_id = ? AND id_loja = ?";
+    // Buscar configurações de timezone da loja
+    const [configuracoes] = await connection.query(
+      "SELECT timezone FROM configuracoes_sistema WHERE id_loja = ?",
+      [req.user.id_loja]
+    );
 
-    const valuesVendas = [caixa.id, caixa.id_loja];
-    const valuesPagamentos = [caixa.id, caixa.id_loja];
+    const timezone =
+      configuracoes.length > 0
+        ? configuracoes[0].timezone
+        : "America/Sao_Paulo";
+
+    // Se o filtro de caixa em operação estiver ativo, buscar o caixa aberto
+    let caixaOperacaoId = null;
+    if (caixa_operacao === "true") {
+      const [caixasAbertos] = await connection.query(
+        "SELECT id FROM caixas WHERE status = 'aberto' AND id_loja = ? ORDER BY criado_em DESC LIMIT 1",
+        [req.user.id_loja]
+      );
+
+      if (caixasAbertos.length > 0) {
+        caixaOperacaoId = caixasAbertos[0].id;
+      }
+    }
+
+    // Query base para buscar vendas com informações do operador
+    let queryVendas = `
+      SELECT 
+        v.id,
+        v.id_integracao,
+        v.id_caixa,
+        v.operador_usuario_id,
+        v.data,
+        v.total,
+        v.desconto,
+        v.status,
+        v.tipo,
+        v.forma_pagamento,
+        v.parcelas,
+        v.parcelas_pagas,
+        v.parcelas_restantes,
+        v.criado_em,
+        v.atualizado_em,
+        u.nome as operador_nome,
+        c.caixa_numero
+      FROM vendas v
+      LEFT JOIN users u ON v.operador_usuario_id = u.id
+      LEFT JOIN caixas c ON v.id_caixa = c.id
+      WHERE v.id_loja = ?
+    `;
+
+    const valuesVendas = [req.user.id_loja];
 
     // Adiciona filtros dinamicamente
     if (n_venda) {
-      queryVendas += " AND n_venda = ?";
-      valuesVendas.push(n_venda);
+      queryVendas += " AND v.id_integracao LIKE ?";
+      valuesVendas.push(`%${n_venda}%`);
     }
 
     if (data) {
-      queryVendas += " AND DATE(data) = ?";
+      queryVendas += " AND DATE(v.data) = ?";
       valuesVendas.push(data);
     }
 
-    if (forma_pagamento) {
-      queryPagamentos += " AND forma_pagamento = ?";
-      valuesPagamentos.push(forma_pagamento);
+    if (forma_pagamento && forma_pagamento !== "todos") {
+      queryVendas += " AND v.forma_pagamento = ?";
+      valuesVendas.push(forma_pagamento);
     }
 
+    // Filtro por caixa em operação
+    if (caixaOperacaoId) {
+      queryVendas += " AND v.id_caixa = ?";
+      valuesVendas.push(caixaOperacaoId);
+    }
+
+    queryVendas += " ORDER BY v.criado_em DESC";
+
     const [vendas] = await connection.query(queryVendas, valuesVendas);
-    const [pagamentos] = await connection.query(
-      queryPagamentos,
-      valuesPagamentos
+
+    // Para cada venda, buscar os itens e formatar datas no timezone correto
+    const vendasComItens = await Promise.all(
+      vendas.map(async (venda) => {
+        const [itens] = await connection.query(
+          `SELECT 
+            vi.id,
+            vi.produto_codigo,
+            vi.descricao,
+            vi.quantidade,
+            vi.valor_unitario,
+            vi.valor_total,
+            vi.peso,
+            vi.unidade
+          FROM venda_itens vi
+          WHERE vi.venda_id = ? AND vi.id_loja = ?
+          ORDER BY vi.id`,
+          [venda.id, req.user.id_loja]
+        );
+
+        // Formatar datas no timezone da loja
+        const criadoEmFormatado = formatDateTimeInTimezone(
+          venda.criado_em,
+          timezone
+        );
+
+        const atualizadoEmFormatado = formatDateTimeInTimezone(
+          venda.atualizado_em,
+          timezone
+        );
+
+        return {
+          ...venda,
+          // Manter timestamps originais em UTC
+          criado_em_utc: venda.criado_em,
+          atualizado_em_utc: venda.atualizado_em,
+          // Adicionar datas formatadas no timezone local
+          criado_em_formatado: criadoEmFormatado,
+          atualizado_em_formatado: atualizadoEmFormatado,
+          timezone: timezone,
+          itens: itens,
+        };
+      })
     );
 
     return res.status(200).json({
       sucesso: true,
-      mensagem: "Histórico de caixas encontrado",
-      vendas,
-      pagamentos,
+      mensagem: "Histórico de vendas encontrado",
+      vendas: vendasComItens,
     });
   } catch (error) {
+    console.error("Erro ao buscar histórico de vendas:", error);
     return res.status(500).json({
       sucesso: false,
-      mensagem: "Erro ao buscar histórico de caixas",
+      mensagem: "Erro ao buscar histórico de vendas",
       erro: error.message,
     });
   } finally {
@@ -515,7 +617,7 @@ const finalizarVenda = async (req, res) => {
           idIntegracao,
           caixaId || 1, // Usar caixa padrão se não especificado
           req.user.id,
-          new Date().toISOString().split("T")[0],
+          getCurrentUTCDate(), // Data atual em UTC (YYYY-MM-DD)
           total,
           descontoFinal,
           "pago",

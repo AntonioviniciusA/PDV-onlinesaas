@@ -21,6 +21,6 @@ router.post("/check-autorizacao", checkAutorizacao);
 router.get("/caixas-abertos", getCaixasAbertos);
 router.get("/caixas-fechados", getCaixasFechados);
 router.post("/verificar-caixa-aberto", verificaCaixaAberto);
-router.get("/historico", autorizar, getHistoricoCaixas);
+router.get("/historico", auth, getHistoricoCaixas);
 router.post("/finalizar-venda", auth, finalizarVenda);
 module.exports = router;

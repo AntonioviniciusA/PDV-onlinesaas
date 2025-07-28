@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "../components/ui/button.jsx";
 import {
   Card,
@@ -37,93 +37,54 @@ import {
   ArrowLeft,
   TrendingUp,
   Calculator,
+  Loader2,
+  CheckSquare,
 } from "lucide-react";
 import { useKeyboardShortcuts } from "../hooks/use-keyboard-shortcuts.js";
 import { KeyboardShortcutsHelp } from "../components/keyboard-shortcuts-help.jsx";
 import { BtnVoltarPDV } from "../components/BtnVoltarPDV.jsx";
 import { useNavigate } from "react-router-dom";
-
-// Dados de exemplo das vendas
-const salesData = [
-  {
-    id: "VD001",
-    date: "2024-01-07",
-    time: "14:30",
-    items: [
-      { id: "1", name: "Coca-Cola 350ml", price: 4.5, quantity: 2 },
-      { id: "2", name: "Pão Francês (kg)", price: 8.9, quantity: 1 },
-    ],
-    subtotal: 17.9,
-    discount: 0,
-    total: 17.9,
-    paymentMethod: "pix",
-    operator: "João Silva",
-  },
-  {
-    id: "VD002",
-    date: "2024-01-07",
-    time: "15:45",
-    items: [
-      { id: "3", name: "Leite Integral 1L", price: 5.2, quantity: 3 },
-      { id: "4", name: "Arroz Branco 5kg", price: 22.9, quantity: 1 },
-      { id: "5", name: "Feijão Preto 1kg", price: 7.8, quantity: 2 },
-    ],
-    subtotal: 54.1,
-    discount: 5,
-    total: 51.4,
-    paymentMethod: "cartao",
-    operator: "Maria Santos",
-  },
-  {
-    id: "VD003",
-    date: "2024-01-07",
-    time: "16:20",
-    items: [
-      { id: "6", name: "Açúcar Cristal 1kg", price: 4.2, quantity: 1 },
-      { id: "7", name: "Óleo de Soja 900ml", price: 6.9, quantity: 1 },
-    ],
-    subtotal: 11.1,
-    discount: 0,
-    total: 11.1,
-    paymentMethod: "dinheiro",
-    operator: "João Silva",
-  },
-  {
-    id: "VD004",
-    date: "2024-01-06",
-    time: "10:15",
-    items: [
-      { id: "8", name: "Macarrão Espaguete", price: 3.8, quantity: 4 },
-      { id: "1", name: "Coca-Cola 350ml", price: 4.5, quantity: 1 },
-    ],
-    subtotal: 19.7,
-    discount: 10,
-    total: 17.73,
-    paymentMethod: "pix",
-    operator: "Ana Costa",
-  },
-  {
-    id: "VD005",
-    date: "2024-01-06",
-    time: "11:30",
-    items: [
-      { id: "4", name: "Arroz Branco 5kg", price: 22.9, quantity: 2 },
-      { id: "5", name: "Feijão Preto 1kg", price: 7.8, quantity: 3 },
-    ],
-    subtotal: 69.2,
-    discount: 0,
-    total: 69.2,
-    paymentMethod: "cartao",
-    operator: "Maria Santos",
-  },
-];
+import { caixaService } from "../services/caixaServices.js";
+import { formatDateTimeBR, isSameDate } from "../utils/dateUtils.js";
 
 export default function HistoricoVendas() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("todos");
-  const [selectedSale, setSelectedSale] = useState(null); // eslint-disable-line no-unused-vars
+  const [caixaOperacaoFilter, setCaixaOperacaoFilter] = useState(false);
+  const [selectedSale, setSelectedSale] = useState(null);
+  const [salesData, setSalesData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Carregar dados do histórico de vendas
+  useEffect(() => {
+    const loadHistoricoVendas = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await caixaService.getHistoricoVendas(
+          searchTerm || undefined,
+          dateFilter || undefined,
+          paymentFilter === "todos" ? undefined : paymentFilter,
+          caixaOperacaoFilter ? "true" : undefined
+        );
+        if (response.sucesso) {
+          setSalesData(response.vendas || []);
+        } else {
+          setError(response.mensagem || "Erro ao carregar histórico");
+        }
+      } catch (err) {
+        console.error("Erro ao carregar histórico:", err);
+        setError("Erro ao carregar histórico de vendas");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadHistoricoVendas();
+  }, [searchTerm, dateFilter, paymentFilter, caixaOperacaoFilter]);
 
   // Definir atalhos de teclado para o histórico
   const shortcuts = useKeyboardShortcuts([
@@ -146,20 +107,28 @@ export default function HistoricoVendas() {
         setSearchTerm("");
         setDateFilter("");
         setPaymentFilter("todos");
+        setCaixaOperacaoFilter(false);
       },
       description: "Limpar Filtros",
+    },
+    {
+      key: "F2",
+      action: () => {
+        setCaixaOperacaoFilter(!caixaOperacaoFilter);
+      },
+      description: "Alternar Filtro Caixa",
     },
   ]);
 
   const filteredSales = salesData.filter((sale) => {
     const matchesSearch =
-      sale.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      sale.operator.toLowerCase().includes(searchTerm.toLowerCase());
+      sale.id_integracao?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sale.operador_nome?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesDate = !dateFilter || sale.date === dateFilter;
+    const matchesDate = !dateFilter || isSameDate(sale.data, dateFilter);
 
     const matchesPayment =
-      paymentFilter === "todos" || sale.paymentMethod === paymentFilter;
+      paymentFilter === "todos" || sale.forma_pagamento === paymentFilter;
 
     return matchesSearch && matchesDate && matchesPayment;
   });
@@ -172,11 +141,15 @@ export default function HistoricoVendas() {
       case "dinheiro":
         return <Banknote className="w-4 h-4" />;
       case "cartao":
+      case "credito":
+      case "debito":
         return <CreditCard className="w-4 h-4" />;
       case "pix":
         return <QrCode className="w-4 h-4" />;
+      case "misto":
+        return <CreditCard className="w-4 h-4" />;
       default:
-        return null;
+        return <Banknote className="w-4 h-4" />;
     }
   };
 
@@ -186,8 +159,14 @@ export default function HistoricoVendas() {
         return "Dinheiro";
       case "cartao":
         return "Cartão";
+      case "credito":
+        return "Crédito";
+      case "debito":
+        return "Débito";
       case "pix":
         return "PIX";
+      case "misto":
+        return "Misto";
       default:
         return method;
     }
@@ -195,10 +174,11 @@ export default function HistoricoVendas() {
 
   const handlePrint = (sale) => {
     // Aqui você implementaria a lógica de impressão
-    alert(`Reimprimindo cupom da venda ${sale.id}`);
+    alert(`Reimprimindo cupom da venda ${sale.id_integracao}`);
   };
 
   const formatDate = (dateStr) => {
+    if (!dateStr) return "";
     const date = new Date(dateStr);
     return date.toLocaleDateString("pt-BR");
   };
@@ -228,7 +208,11 @@ export default function HistoricoVendas() {
                 <div>
                   <p className="text-sm text-gray-600">Total em Vendas</p>
                   <p className="text-2xl font-bold text-green-600">
-                    R$ {totalSales.toFixed(2)}
+                    {loading ? (
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                    ) : (
+                      `R$ ${totalSales.toFixed(2)}`
+                    )}
                   </p>
                 </div>
               </div>
@@ -241,7 +225,11 @@ export default function HistoricoVendas() {
                 <div>
                   <p className="text-sm text-gray-600">Transações</p>
                   <p className="text-2xl font-bold text-blue-600">
-                    {totalTransactions}
+                    {loading ? (
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                    ) : (
+                      totalTransactions
+                    )}
                   </p>
                 </div>
               </div>
@@ -254,16 +242,28 @@ export default function HistoricoVendas() {
                 <div>
                   <p className="text-sm text-gray-600">Ticket Médio</p>
                   <p className="text-2xl font-bold text-purple-600">
-                    R${" "}
-                    {totalTransactions > 0
-                      ? (totalSales / totalTransactions).toFixed(2)
-                      : "0.00"}
+                    {loading ? (
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                    ) : (
+                      `R$ ${
+                        totalTransactions > 0
+                          ? (totalSales / totalTransactions).toFixed(2)
+                          : "0.00"
+                      }`
+                    )}
                   </p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* Mensagem de erro */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-600">{error}</p>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Filtros */}
@@ -313,9 +313,28 @@ export default function HistoricoVendas() {
                       <SelectItem value="todos">Todos</SelectItem>
                       <SelectItem value="dinheiro">Dinheiro</SelectItem>
                       <SelectItem value="cartao">Cartão</SelectItem>
+                      <SelectItem value="credito">Crédito</SelectItem>
+                      <SelectItem value="debito">Débito</SelectItem>
                       <SelectItem value="pix">PIX</SelectItem>
+                      <SelectItem value="misto">Misto</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="caixa-operacao"
+                    checked={caixaOperacaoFilter}
+                    onChange={(e) => setCaixaOperacaoFilter(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                  />
+                  <Label
+                    htmlFor="caixa-operacao"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Apenas caixa em operação
+                  </Label>
                 </div>
 
                 <Button
@@ -323,6 +342,7 @@ export default function HistoricoVendas() {
                     setSearchTerm("");
                     setDateFilter("");
                     setPaymentFilter("todos");
+                    setCaixaOperacaoFilter(false);
                   }}
                   variant="outline"
                   className="w-full"
@@ -341,150 +361,190 @@ export default function HistoricoVendas() {
                 <CardTitle className="flex items-center gap-2">
                   <History className="w-5 h-5" />
                   Vendas ({filteredSales.length})
+                  {caixaOperacaoFilter && (
+                    <Badge variant="secondary" className="ml-2">
+                      <CheckSquare className="w-3 h-3 mr-1" />
+                      Caixa Ativo
+                    </Badge>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-96">
-                  {filteredSales.length === 0 ? (
+                  {loading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                      <span className="ml-2 text-gray-600">
+                        Carregando vendas...
+                      </span>
+                    </div>
+                  ) : filteredSales.length === 0 ? (
                     <p className="text-gray-500 text-center py-8">
                       Nenhuma venda encontrada
                     </p>
                   ) : (
                     <div className="space-y-3">
-                      {filteredSales.map((sale) => (
-                        <Card key={sale.id} className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <Badge variant="outline" className="font-mono">
-                                  {sale.id}
-                                </Badge>
-                                <div className="flex items-center gap-1">
-                                  {getPaymentIcon(sale.paymentMethod)}
-                                  <span className="text-sm text-gray-600">
-                                    {getPaymentLabel(sale.paymentMethod)}
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                <div>
-                                  <p className="text-gray-500">Data</p>
-                                  <p className="font-medium">
-                                    {formatDate(sale.date)}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-gray-500">Hora</p>
-                                  <p className="font-medium">{sale.time}</p>
-                                </div>
-                                <div>
-                                  <p className="text-gray-500">Operador</p>
-                                  <p className="font-medium">{sale.operator}</p>
-                                </div>
-                                <div>
-                                  <p className="text-gray-500">Total</p>
-                                  <p className="font-bold text-green-600">
-                                    R$ {sale.total.toFixed(2)}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex gap-2 ml-4">
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button
-                                    size="sm"
+                      {filteredSales.map((sale) => {
+                        // Usar as datas já formatadas pelo backend
+                        const date = sale.criado_em_formatado?.date || "N/A";
+                        const time = sale.criado_em_formatado?.time || "N/A";
+                        return (
+                          <Card key={sale.id} className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <Badge
                                     variant="outline"
-                                    onClick={() => setSelectedSale(sale)}
+                                    className="font-mono"
                                   >
-                                    <Eye className="w-4 h-4" />
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-md">
-                                  <DialogHeader>
-                                    <DialogTitle>
-                                      Detalhes da Venda {sale.id}
-                                    </DialogTitle>
-                                  </DialogHeader>
-                                  <div className="space-y-4">
-                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                    {sale.id_integracao}
+                                  </Badge>
+                                  <div className="flex items-center gap-1">
+                                    {getPaymentIcon(sale.forma_pagamento)}
+                                    <span className="text-sm text-gray-600">
+                                      {getPaymentLabel(sale.forma_pagamento)}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                  <div>
+                                    <p className="text-gray-500">Data</p>
+                                    <p className="font-medium">{date}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-gray-500">Hora</p>
+                                    <p className="font-medium">{time}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-gray-500">Operador</p>
+                                    <p className="font-medium">
+                                      {sale.operador_nome || "N/A"}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-gray-500">Total</p>
+                                    <p className="font-bold text-green-600">
+                                      R$ {Number(sale.total).toFixed(2)}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex gap-2 ml-4">
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => setSelectedSale(sale)}
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-md">
+                                    <DialogHeader>
+                                      <DialogTitle>
+                                        Detalhes da Venda {sale.id_integracao}
+                                      </DialogTitle>
+                                    </DialogHeader>
+                                    <div className="space-y-4">
+                                      <div className="grid grid-cols-2 gap-4 text-sm">
+                                        <div>
+                                          <p className="text-gray-500">
+                                            Data/Hora
+                                          </p>
+                                          <p>
+                                            {date} às {time}
+                                            {sale.timezone && (
+                                              <span className="text-xs text-gray-500 ml-1">
+                                                ({sale.timezone})
+                                              </span>
+                                            )}
+                                          </p>
+                                        </div>
+                                        <div>
+                                          <p className="text-gray-500">
+                                            Operador
+                                          </p>
+                                          <p>{sale.operador_nome || "N/A"}</p>
+                                        </div>
+                                      </div>
+                                      <Separator />
                                       <div>
-                                        <p className="text-gray-500">
-                                          Data/Hora
+                                        <p className="font-medium mb-2">
+                                          Itens:
                                         </p>
-                                        <p>
-                                          {formatDate(sale.date)} às {sale.time}
-                                        </p>
+                                        <div className="space-y-2">
+                                          {sale.itens &&
+                                          sale.itens.length > 0 ? (
+                                            sale.itens.map((item) => (
+                                              <div
+                                                key={item.id}
+                                                className="flex justify-between text-sm"
+                                              >
+                                                <span>
+                                                  {item.quantidade}x{" "}
+                                                  {item.descricao}
+                                                </span>
+                                                <span>
+                                                  R${" "}
+                                                  {Number(
+                                                    item.valor_total
+                                                  ).toFixed(2)}
+                                                </span>
+                                              </div>
+                                            ))
+                                          ) : (
+                                            <p className="text-gray-500 text-sm">
+                                              Nenhum item encontrado
+                                            </p>
+                                          )}
+                                        </div>
                                       </div>
-                                      <div>
-                                        <p className="text-gray-500">
-                                          Operador
-                                        </p>
-                                        <p>{sale.operator}</p>
-                                      </div>
-                                    </div>
-                                    <Separator />
-                                    <div>
-                                      <p className="font-medium mb-2">Itens:</p>
-                                      <div className="space-y-2">
-                                        {sale.items.map((item) => (
-                                          <div
-                                            key={item.id}
-                                            className="flex justify-between text-sm"
-                                          >
-                                            <span>
-                                              {item.quantity}x {item.name}
-                                            </span>
-                                            <span>
-                                              R${" "}
-                                              {(
-                                                item.price * item.quantity
-                                              ).toFixed(2)}
-                                            </span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                    <Separator />
-                                    <div className="space-y-1 text-sm">
-                                      <div className="flex justify-between">
-                                        <span>Subtotal:</span>
-                                        <span>
-                                          R$ {sale.subtotal.toFixed(2)}
-                                        </span>
-                                      </div>
-                                      {sale.discount > 0 && (
-                                        <div className="flex justify-between text-red-600">
+                                      <Separator />
+                                      <div className="space-y-1 text-sm">
+                                        <div className="flex justify-between">
+                                          <span>Subtotal:</span>
                                           <span>
-                                            Desconto ({sale.discount}%):
-                                          </span>
-                                          <span>
-                                            -R${" "}
+                                            R${" "}
                                             {(
-                                              (sale.subtotal * sale.discount) /
-                                              100
+                                              Number(sale.total) +
+                                              Number(sale.desconto || 0)
                                             ).toFixed(2)}
                                           </span>
                                         </div>
-                                      )}
-                                      <div className="flex justify-between font-bold">
-                                        <span>Total:</span>
-                                        <span>R$ {sale.total.toFixed(2)}</span>
+                                        {sale.desconto &&
+                                          Number(sale.desconto) > 0 && (
+                                            <div className="flex justify-between text-red-600">
+                                              <span>Desconto:</span>
+                                              <span>
+                                                -R${" "}
+                                                {Number(sale.desconto).toFixed(
+                                                  2
+                                                )}
+                                              </span>
+                                            </div>
+                                          )}
+                                        <div className="flex justify-between font-bold">
+                                          <span>Total:</span>
+                                          <span>
+                                            R$ {Number(sale.total).toFixed(2)}
+                                          </span>
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
-                                </DialogContent>
-                              </Dialog>
-                              <Button
-                                size="sm"
-                                onClick={() => handlePrint(sale)}
-                              >
-                                <Printer className="w-4 h-4" />
-                              </Button>
+                                  </DialogContent>
+                                </Dialog>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handlePrint(sale)}
+                                >
+                                  <Printer className="w-4 h-4" />
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                        </Card>
-                      ))}
+                          </Card>
+                        );
+                      })}
                     </div>
                   )}
                 </ScrollArea>

@@ -72,21 +72,26 @@ export const caixaService = {
       throw error;
     }
   },
-  getHistoricoCaixas: async (caixa, n_venda, data, forma_pagamento) => {
+  getHistoricoVendas: async (
+    n_venda,
+    data,
+    forma_pagamento,
+    caixa_operacao
+  ) => {
     try {
       const response = await baseUrl.get("/caixa/historico", {
         params: {
-          caixa: JSON.stringify(caixa), // muito importante
           n_venda,
           data,
           forma_pagamento,
+          caixa_operacao,
         },
         withCredentials: true,
       });
 
       return response.data;
     } catch (error) {
-      console.error("Erro ao obter histórico de caixas:", error);
+      console.error("Erro ao obter histórico de vendas:", error);
       throw error;
     }
   },

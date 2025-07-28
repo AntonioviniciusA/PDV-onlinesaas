@@ -1,14 +1,15 @@
 const express = require("express");
 const router = express.Router();
 const {
-  getConfiguracoesSistema,
-  atualizarConfiguracoesSistema,
+  getConfiguracoes,
+  updateConfiguracoes,
+  getTimezones,
 } = require("../controllers/configuracoes_sistema.controller.js");
+const auth = require("../middlewares/auth.middleware.js");
 
-// Rota para buscar configuração do sistema
-router.get("/", getConfiguracoesSistema);
-
-// Rota para atualizar configuração do sistema
-router.post("/", atualizarConfiguracoesSistema);
+// Rotas para configurações do sistema
+router.get("/", auth, getConfiguracoes);
+router.put("/", auth, updateConfiguracoes);
+router.get("/timezones", getTimezones);
 
 module.exports = router;
