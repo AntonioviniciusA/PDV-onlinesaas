@@ -44,23 +44,22 @@ import { CashManagementDialog } from "../components/cash-management-dialog.jsx";
 import { ReceiptSelectionDialog } from "../components/receipt-selection-dialog.jsx";
 import { useOfflineSync } from "../hooks/use-offline-sync.js";
 import { OfflineStatus } from "../components/offline-status.jsx";
-import { useNavigate } from "react-router-dom";
 import PdvNav from "../components/PdvNav.jsx";
+import Loading from "../components/Loading.jsx";
+import RequestAuthorization from "../components/RequestAuthorization.jsx";
+import { useNavigate } from "react-router-dom";
+import { hasPermission } from "../utils/permissions.js";
+import { useProdutos } from "../hooks/useProducts.js";
+import { caixaService } from "../services/caixaServices.js";
+import cardTypes from "../types/card-types.js";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog.jsx";
-import RequestAuthorization from "../components/RequestAuthorization.jsx";
-import beepSound from "../assets/sounds/beep.mp3";
-
-import { cupomService } from "../services/cupomServices.js";
-import cardTypes from "../types/card-types.js";
-import { hasPermission } from "../utils/permissions.js";
-import { useProdutos } from "../hooks/useProducts.js";
 import { useIsAuthenticated, useUser } from "../hooks/useAuth";
-import Loading from "../components/Loading.jsx";
+import beepSound from "../assets/sounds/beep.mp3";
 
 export default function PDVCaixa() {
   const navigate = useNavigate();
@@ -134,10 +133,12 @@ export default function PDVCaixa() {
     }
   }, [authorizationRequest]);
 
-  const filteredProducts = products.filter(
+  const filteredProducts = (products || []).filter(
     (product) =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.barcode.includes(searchTerm)
+      (product.descricao || product.name || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      (product.codigo_barras || product.barcode || "").includes(searchTerm)
   );
 
   // Auto-hide da lista de produtos após 3 segundos sem pesquisa
@@ -185,9 +186,10 @@ export default function PDVCaixa() {
     }
 
     const finalWeight = weight || 1;
+    const productPrice = product.preco_venda || product.price || 0;
     const totalPrice = product.requiresWeight
-      ? product.price * finalWeight
-      : product.price * qty;
+      ? productPrice * finalWeight
+      : productPrice * qty;
 
     setCart((prev) => {
       const existingItemIndex = prev.findIndex(
@@ -203,7 +205,7 @@ export default function PDVCaixa() {
             ? {
                 ...item,
                 quantity: item.quantity + qty,
-                totalPrice: item.totalPrice + product.price * qty,
+                totalPrice: item.totalPrice + productPrice * qty,
               }
             : item
         );
@@ -239,7 +241,9 @@ export default function PDVCaixa() {
       requestAuthorization({
         type: "remove-item",
         title: "Remover Item",
-        description: `Remover "${item?.name}" do carrinho. Esta ação requer autorização do fiscal.`,
+        description: `Remover "${
+          item?.descricao || item?.name || "Item"
+        }" do carrinho. Esta ação requer autorização do fiscal.`,
         action: () => removeFromCartDirect(id, weight),
         itemId: id,
       });
@@ -249,9 +253,10 @@ export default function PDVCaixa() {
     setCart((prev) =>
       prev.map((item) => {
         if (item.id === id && (!weight || item.weight === weight)) {
+          const itemPrice = item.preco_venda || item.price || 0;
           const newTotalPrice = item.requiresWeight
-            ? item.price * (item.weight || 1) * quantity
-            : item.price * quantity;
+            ? itemPrice * (item.weight || 1) * quantity
+            : itemPrice * quantity;
           return { ...item, quantity, totalPrice: newTotalPrice };
         }
         return item;
@@ -266,7 +271,9 @@ export default function PDVCaixa() {
     requestAuthorization({
       type: "remove-item",
       title: "Remover Item",
-      description: `Remover "${item?.name}" do carrinho. Esta ação requer autorização do fiscal.`,
+      description: `Remover "${
+        item?.descricao || item?.name || "Item"
+      }" do carrinho. Esta ação requer autorização do fiscal.`,
       action: () => removeFromCartDirect(id, weight),
       itemId: id,
     });
@@ -284,7 +291,7 @@ export default function PDVCaixa() {
     if (selectedCartIndex >= 0) {
       setSelectedCartIndex(-1);
     }
-    return item?.name || "Item";
+    return item?.descricao || item?.name || "Item";
   };
 
   const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
@@ -298,7 +305,9 @@ export default function PDVCaixa() {
   const total = subtotal - discountAmount;
 
   const handleBarcodeSearch = () => {
-    const product = products.find((p) => p.barcode === barcode);
+    const product = (products || []).find(
+      (p) => (p.codigo_barras || p.barcode) === barcode
+    );
     if (product) {
       addToCart(product, undefined, barcodeQty);
       setBarcode("");
@@ -421,7 +430,40 @@ export default function PDVCaixa() {
     }
   };
 
-  const completeSale = async (receivedAmount, changeAmount, receiptType) => {
+  const finalizeSale = async (receivedAmount, changeAmount, receiptType) => {
+    // ADICIONAR verificações antes de finalizar
+    if (cart.length === 0) {
+      alert("Adicione produtos ao carrinho antes de finalizar a venda!");
+      return;
+    }
+
+    if (total <= 0) {
+      alert("O valor total deve ser maior que zero!");
+      return;
+    }
+
+    if (!paymentMethod && mixedPayments.length === 0) {
+      alert("Selecione uma forma de pagamento!");
+      return;
+    }
+
+    if (paymentMethod === "dinheiro") {
+      setShowCashPayment(true);
+      return;
+    }
+
+    if (paymentMethod === "pix") {
+      if (!pixPaymentConfirmed) {
+        setShowPixPayment(true);
+        return;
+      }
+    }
+
+    if (paymentMethod === "cartao" && !selectedCardType) {
+      setShowCardSelection(true);
+      return;
+    }
+
     if (cart.length === 0) {
       alert("Não é possível finalizar venda com carrinho vazio!");
       return;
@@ -493,11 +535,7 @@ export default function PDVCaixa() {
     };
 
     try {
-      if (receiptType === "fiscal") {
-        await cupomService.printThermalCupom(cupomData);
-      } else {
-        await cupomService.printThermalRecibo(cupomData);
-      }
+      await caixaService.finalizarVenda(cupomData);
     } catch (error) {
       console.error("Erro ao salvar cupom:", error);
       message += "\n\n❌ Erro ao salvar cupom.";
@@ -505,44 +543,6 @@ export default function PDVCaixa() {
 
     alert(message);
     clearCartDirect();
-  };
-
-  const finalizeSale = () => {
-    // ADICIONAR verificações antes de finalizar
-    if (cart.length === 0) {
-      alert("Adicione produtos ao carrinho antes de finalizar a venda!");
-      return;
-    }
-
-    if (total <= 0) {
-      alert("O valor total deve ser maior que zero!");
-      return;
-    }
-
-    if (!paymentMethod && mixedPayments.length === 0) {
-      alert("Selecione uma forma de pagamento!");
-      return;
-    }
-
-    if (paymentMethod === "dinheiro") {
-      setShowCashPayment(true);
-      return;
-    }
-
-    if (paymentMethod === "pix") {
-      if (!pixPaymentConfirmed) {
-        setShowPixPayment(true);
-        return;
-      }
-    }
-
-    if (paymentMethod === "cartao" && !selectedCardType) {
-      setShowCardSelection(true);
-      return;
-    }
-
-    // Para cartão e PIX confirmado, finalizar diretamente
-    completeSale();
   };
 
   const focusSearchInput = () => {
@@ -887,7 +887,9 @@ export default function PDVCaixa() {
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2">
                                       <h3 className="font-semibold text-sm">
-                                        {product.name}
+                                        {product.descricao ||
+                                          product.name ||
+                                          "Produto sem nome"}
                                       </h3>
                                       {product.requiresWeight && (
                                         <Scale
@@ -909,16 +911,30 @@ export default function PDVCaixa() {
                                         variant="secondary"
                                         className="text-xs"
                                       >
-                                        {product.category}
+                                        {product.grupo ||
+                                          product.category ||
+                                          "Sem categoria"}
                                       </Badge>
                                       <span className="text-xs text-gray-500">
-                                        {product.barcode}
+                                        {product.codigo_barras ||
+                                          product.barcode ||
+                                          "Sem código"}
                                       </span>
                                       <span className="text-xs text-blue-600">
                                         {product.requiresWeight
-                                          ? `R$ ${product.price.toFixed(2)}/kg`
-                                          : `R$ ${product.price.toFixed(2)}/${
-                                              product.unit
+                                          ? `R$ ${(
+                                              product.preco_venda ||
+                                              product.price ||
+                                              0
+                                            ).toFixed(2)}/kg`
+                                          : `R$ ${(
+                                              product.preco_venda ||
+                                              product.price ||
+                                              0
+                                            ).toFixed(2)}/${
+                                              product.unidade ||
+                                              product.unit ||
+                                              "UN"
                                             }`}
                                       </span>
                                     </div>
@@ -1019,7 +1035,9 @@ export default function PDVCaixa() {
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1">
                                   <p className="font-medium text-sm truncate text-gray-800">
-                                    {item.name}
+                                    {item.descricao ||
+                                      item.name ||
+                                      "Produto sem nome"}
                                   </p>
                                   {item.requiresWeight && (
                                     <Scale className="w-3 h-3 text-orange-600" />
@@ -1037,11 +1055,22 @@ export default function PDVCaixa() {
                                   {item.requiresWeight ? (
                                     <span>
                                       {item.weight?.toFixed(3)} kg × R${" "}
-                                      {item.price.toFixed(2)}/kg
+                                      {(
+                                        item.preco_venda ||
+                                        item.price ||
+                                        0
+                                      ).toFixed(2)}
+                                      /kg
                                     </span>
                                   ) : (
                                     <span>
-                                      R$ {item.price.toFixed(2)}/{item.unit}
+                                      R${" "}
+                                      {(
+                                        item.preco_venda ||
+                                        item.price ||
+                                        0
+                                      ).toFixed(2)}
+                                      /{item.unidade || item.unit || "UN"}
                                     </span>
                                   )}
                                 </div>
@@ -1113,7 +1142,10 @@ export default function PDVCaixa() {
                         R${" "}
                         {cart
                           .reduce(
-                            (sum, item) => sum + item.price * item.quantity,
+                            (sum, item) =>
+                              sum +
+                              (item.preco_venda || item.price || 0) *
+                                item.quantity,
                             0
                           )
                           .toFixed(2)}
@@ -1352,7 +1384,7 @@ export default function PDVCaixa() {
         open={showCashPayment}
         onOpenChange={setShowCashPayment}
         totalAmount={total}
-        onConfirm={(received, change) => completeSale(received, change)}
+        onConfirm={(received, change) => finalizeSale(received, change)}
       />
 
       <PixPaymentDialog
@@ -1424,7 +1456,7 @@ export default function PDVCaixa() {
       <ReceiptSelectionDialog
         open={showReceiptSelection}
         onOpenChange={setShowReceiptSelection}
-        onSelect={(type) => completeSale(undefined, undefined, type)}
+        onSelect={(type) => finalizeSale(undefined, undefined, type)}
         canChoose={
           user
             ? receiptConfig.rolePermissions[user.permissions]?.canChoose ||

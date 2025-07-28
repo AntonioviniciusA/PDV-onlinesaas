@@ -4,6 +4,9 @@ export const produtosServices = {
   getProdutos: async () => {
     try {
       const response = await baseUrl.get("/produtos/listar", {
+        params: {
+          id_loja: "00000000-0000-0000-0000-000000000000",
+        },
         withCredentials: true,
       });
       return response.data;
@@ -14,6 +17,9 @@ export const produtosServices = {
   getProdutoById: async (id) => {
     try {
       const response = await baseUrl.get(`/produtos/listar/${id}`, {
+        params: {
+          id_loja: "00000000-0000-0000-0000-000000000000",
+        },
         withCredentials: true,
       });
       return response.data;
@@ -23,7 +29,11 @@ export const produtosServices = {
   },
   createProduto: async (produto) => {
     try {
-      const response = await baseUrl.post("/produtos/criar", produto, {
+      const produtoComLoja = {
+        ...produto,
+        id_loja: "00000000-0000-0000-0000-000000000000",
+      };
+      const response = await baseUrl.post("/produtos/criar", produtoComLoja, {
         withCredentials: true,
       });
       return response.data;
@@ -33,9 +43,17 @@ export const produtosServices = {
   },
   updateProduto: async (id, produto) => {
     try {
-      const response = await baseUrl.put(`/produtos/atualizar/${id}`, produto, {
-        withCredentials: true,
-      });
+      const produtoComLoja = {
+        ...produto,
+        id_loja: "00000000-0000-0000-0000-000000000000",
+      };
+      const response = await baseUrl.put(
+        `/produtos/atualizar/${id}`,
+        produtoComLoja,
+        {
+          withCredentials: true,
+        }
+      );
       return response.data;
     } catch (error) {
       throw error;
@@ -44,6 +62,9 @@ export const produtosServices = {
   deleteProduto: async (id) => {
     try {
       const response = await baseUrl.delete(`/produtos/apagar/${id}`, {
+        params: {
+          id_loja: "00000000-0000-0000-0000-000000000000",
+        },
         withCredentials: true,
       });
       return response.data;

@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
 import { localAuthService } from "../services/localAuthService";
-import { hasPermission } from "../utils/permissions";
+
 export default function PdvNav({
   shortcuts = [],
   hasPermission = (user, module) => false,
@@ -37,9 +37,7 @@ export default function PdvNav({
       )}
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white">
-            Sistema PDV - Caixa
-          </h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-white">Caixa</h1>
           <p className="text-sm text-white">Ponto de Venda</p>
         </div>
         <div className="flex gap-2">

@@ -34,8 +34,12 @@ import {
   Calculator,
 } from "lucide-react";
 import { CSVImportDialog } from "../components/csv-import-dialog.jsx";
-import { calculateComparativePrice } from "../components/unit-converter.js";
-import { useProdutos, useCreateProduto } from "../hooks/useProducts.js";
+import {
+  useProdutos,
+  useCreateProduto,
+  useUpdateProduto,
+  useDeleteProduto,
+} from "../hooks/useProducts.js";
 import { produtosServices } from "../services/produtosServices.js";
 import { localAuthService } from "../services/localAuthService.js";
 import { ncmService } from "../services/ncmService.js";
@@ -45,6 +49,12 @@ import {
   TabsTrigger,
   TabsContent,
 } from "../components/ui/tabs.jsx";
+
+// Função utilitária para formatar preços
+const formatPrice = (price) => {
+  const numPrice = Number(price || 0);
+  return isNaN(numPrice) ? "0.00" : numPrice.toFixed(2);
+};
 
 export default function CadastroProdutos() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -92,11 +102,7 @@ export default function CadastroProdutos() {
     ativo: true,
     exibir_tela: true,
     solicita_quantidade: false,
-    permitir_combinacao: false,
-    cest: "",
-    cst_pis: "",
     pis: "",
-    cst_cofins: "",
     cofins: "",
   });
   const [ncmError, setNcmError] = useState("");
@@ -105,14 +111,25 @@ export default function CadastroProdutos() {
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState("");
   const [showImportDialog, setShowImportDialog] = useState(false);
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [formErrors, setFormErrors] = useState({});
 
-  // Usar hook para criar produto
+  // Usar hooks para operações de produtos
   const { mutateAsync: createProduto, isLoading: creatingProduto } =
     useCreateProduto();
+  const { mutateAsync: updateProduto, isLoading: updatingProduto } =
+    useUpdateProduto();
+  const { mutateAsync: deleteProduto, isLoading: deletingProduto } =
+    useDeleteProduto();
+
+  // Usar hook para buscar produtos
+  const {
+    data: produtosData,
+    isLoading: loading,
+    error: produtosError,
+    refetch: fetchProdutos,
+  } = useProdutos();
+  const products = produtosData || [];
+  const error = produtosError?.message || "";
 
   const searchInputRef = useRef(null);
 
@@ -133,26 +150,8 @@ export default function CadastroProdutos() {
 
   // Carregar produtos ao montar
   useEffect(() => {
-    fetchProdutos();
-    // eslint-disable-next-line
+    // Os produtos são carregados automaticamente pelo hook useProdutos
   }, []);
-
-  const fetchProdutos = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const valid = await localAuthService.isAuthenticated();
-      console.log("valid", valid);
-      if (valid) {
-        const res = await produtosServices.getProdutos();
-        setProducts(res.produtos || []);
-      }
-    } catch (err) {
-      setError("Erro ao carregar produtos");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Ajustar filteredProducts para usar o estado local
   const filteredProducts = products.filter(
@@ -194,15 +193,41 @@ export default function CadastroProdutos() {
     const newErrors = validateForm(formData);
     setFormErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
-    setLoading(true);
-    setError("");
     try {
       const productData = {
         codigo: formData.codigo.trim(),
         codigo_barras: formData.codigo_barras.trim(),
         descricao: formData.descricao.trim(),
+        descricao_fiscal: formData.descricao_fiscal.trim(),
         grupo: formData.grupo.trim(),
         ncm: formData.ncm.trim(),
+        cest: formData.cest.trim(),
+        origem: formData.origem,
+        cfop_entrada: formData.cfop_entrada.trim(),
+        cfop_saida: formData.cfop_saida.trim(),
+        cst_entrada: formData.cst_entrada.trim(),
+        cst_saida: formData.cst_saida.trim(),
+        modalidade_bc_icms: formData.modalidade_bc_icms.trim(),
+        aliquota_icms: formData.aliquota_icms
+          ? Number(formData.aliquota_icms)
+          : undefined,
+        aliquota_ipi: formData.aliquota_ipi
+          ? Number(formData.aliquota_ipi)
+          : undefined,
+        aliquota_pis: formData.aliquota_pis
+          ? Number(formData.aliquota_pis)
+          : undefined,
+        aliquota_cofins: formData.aliquota_cofins
+          ? Number(formData.aliquota_cofins)
+          : undefined,
+        cst_pis: formData.cst_pis.trim(),
+        cst_cofins: formData.cst_cofins.trim(),
+        credito_presumido: formData.credito_presumido.trim(),
+        categoria_tributaria: formData.categoria_tributaria.trim(),
+        cbs: formData.cbs ? Number(formData.cbs) : undefined,
+        ibs: formData.ibs ? Number(formData.ibs) : undefined,
+        ii: formData.ii ? Number(formData.ii) : undefined,
+        afrmm_fmm: formData.afrmm_fmm.trim(),
         preco_custo: formData.preco_custo
           ? Number(formData.preco_custo)
           : undefined,
@@ -230,27 +255,20 @@ export default function CadastroProdutos() {
         ativo: formData.ativo,
         exibir_tela: formData.exibir_tela,
         solicita_quantidade: formData.solicita_quantidade,
-        permitir_combinacao: formData.permitir_combinacao,
-        cest: formData.cest.trim(),
-        cst_pis: formData.cst_pis.trim(),
         pis: formData.pis ? Number(formData.pis) : undefined,
-        cst_cofins: formData.cst_cofins.trim(),
         cofins: formData.cofins ? Number(formData.cofins) : undefined,
       };
       if (editingProduct) {
-        await produtosServices.updateProduto(editingProduct.id, productData);
+        await updateProduto({ id: editingProduct.id, data: productData });
         setSuccess("Produto atualizado com sucesso!");
       } else {
         await createProduto(productData);
         setSuccess("Produto cadastrado com sucesso!");
       }
-      await fetchProdutos();
       handleCancel();
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
-      setError("Erro ao salvar produto");
-    } finally {
-      setLoading(false);
+      console.error("Erro ao salvar produto:", err);
     }
   };
 
@@ -261,8 +279,28 @@ export default function CadastroProdutos() {
       codigo: "",
       codigo_barras: "",
       descricao: "",
+      descricao_fiscal: "",
       grupo: "",
       ncm: "",
+      cest: "",
+      origem: "",
+      cfop_entrada: "",
+      cfop_saida: "",
+      cst_entrada: "",
+      cst_saida: "",
+      modalidade_bc_icms: "",
+      aliquota_icms: "",
+      aliquota_ipi: "",
+      aliquota_pis: "",
+      aliquota_cofins: "",
+      cst_pis: "",
+      cst_cofins: "",
+      credito_presumido: "",
+      categoria_tributaria: "",
+      cbs: "",
+      ibs: "",
+      ii: "",
+      afrmm_fmm: "",
       preco_custo: "",
       margem_lucro: "",
       preco_venda: "",
@@ -278,11 +316,7 @@ export default function CadastroProdutos() {
       ativo: true,
       exibir_tela: true,
       solicita_quantidade: false,
-      permitir_combinacao: false,
-      cest: "",
-      cst_pis: "",
       pis: "",
-      cst_cofins: "",
       cofins: "",
     });
     setErrors({});
@@ -297,8 +331,28 @@ export default function CadastroProdutos() {
       codigo: product.codigo || "",
       codigo_barras: product.codigo_barras || product.barcode || "",
       descricao: product.descricao || "",
+      descricao_fiscal: product.descricao_fiscal || "",
       grupo: product.grupo || "",
       ncm: product.ncm || "",
+      cest: product.cest || "",
+      origem: product.origem || "",
+      cfop_entrada: product.cfop_entrada || "",
+      cfop_saida: product.cfop_saida || "",
+      cst_entrada: product.cst_entrada || "",
+      cst_saida: product.cst_saida || "",
+      modalidade_bc_icms: product.modalidade_bc_icms || "",
+      aliquota_icms: product.aliquota_icms?.toString() || "",
+      aliquota_ipi: product.aliquota_ipi?.toString() || "",
+      aliquota_pis: product.aliquota_pis?.toString() || "",
+      aliquota_cofins: product.aliquota_cofins?.toString() || "",
+      cst_pis: product.cst_pis || "",
+      cst_cofins: product.cst_cofins || "",
+      credito_presumido: product.credito_presumido || "",
+      categoria_tributaria: product.categoria_tributaria || "",
+      cbs: product.cbs?.toString() || "",
+      ibs: product.ibs?.toString() || "",
+      ii: product.ii?.toString() || "",
+      afrmm_fmm: product.afrmm_fmm || "",
       preco_custo: product.preco_custo?.toString() || "",
       margem_lucro: product.margem_lucro?.toString() || "",
       preco_venda: product.preco_venda?.toString() || "",
@@ -315,11 +369,7 @@ export default function CadastroProdutos() {
       exibir_tela:
         product.exibir_tela !== undefined ? product.exibir_tela : true,
       solicita_quantidade: product.solicita_quantidade || false,
-      permitir_combinacao: product.permitir_combinacao || false,
-      cest: product.cest || "",
-      cst_pis: product.cst_pis || "",
       pis: product.pis?.toString() || "",
-      cst_cofins: product.cst_cofins || "",
       cofins: product.cofins?.toString() || "",
     });
     setShowAddDialog(true);
@@ -331,17 +381,12 @@ export default function CadastroProdutos() {
         `Tem certeza que deseja excluir "${product.descricao || product.name}"?`
       )
     ) {
-      setLoading(true);
-      setError("");
       try {
-        await produtosServices.deleteProduto(product.id);
+        await deleteProduto(product.id);
         setSuccess("Produto excluído com sucesso!");
-        await fetchProdutos();
         setTimeout(() => setSuccess(""), 3000);
       } catch (err) {
-        setError("Erro ao excluir produto");
-      } finally {
-        setLoading(false);
+        console.error("Erro ao excluir produto:", err);
       }
     }
   };
@@ -352,8 +397,28 @@ export default function CadastroProdutos() {
       codigo: "",
       codigo_barras: "",
       descricao: "",
+      descricao_fiscal: "",
       grupo: "",
       ncm: "",
+      cest: "",
+      origem: "",
+      cfop_entrada: "",
+      cfop_saida: "",
+      cst_entrada: "",
+      cst_saida: "",
+      modalidade_bc_icms: "",
+      aliquota_icms: "",
+      aliquota_ipi: "",
+      aliquota_pis: "",
+      aliquota_cofins: "",
+      cst_pis: "",
+      cst_cofins: "",
+      credito_presumido: "",
+      categoria_tributaria: "",
+      cbs: "",
+      ibs: "",
+      ii: "",
+      afrmm_fmm: "",
       preco_custo: "",
       margem_lucro: "",
       preco_venda: "",
@@ -369,30 +434,13 @@ export default function CadastroProdutos() {
       ativo: true,
       exibir_tela: true,
       solicita_quantidade: false,
-      permitir_combinacao: false,
-      cest: "",
-      cst_pis: "",
       pis: "",
-      cst_cofins: "",
       cofins: "",
     });
     setNcmError("");
     setNcmSuccess(false);
     setIsLoadingNcm(false);
     setShowAddDialog(true);
-  };
-
-  // Calcular preço comparativo em tempo real
-  const getComparativePrice = () => {
-    if (!formData.price || !formData.quantity || !formData.measureUnit)
-      return null;
-
-    const price = Number(formData.price);
-    const quantity = Number(formData.quantity);
-
-    if (price <= 0 || quantity <= 0) return null;
-
-    return calculateComparativePrice(price, quantity, formData.measureUnit);
   };
 
   // Função para buscar NCM automaticamente
@@ -456,8 +504,6 @@ export default function CadastroProdutos() {
       setIsLoadingNcm(false);
     }
   };
-
-  const comparativePrice = getComparativePrice();
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
@@ -551,55 +597,38 @@ export default function CadastroProdutos() {
                 ) : (
                   <div className="space-y-3">
                     {filteredProducts.map((product) => {
-                      const hasComparison =
-                        product.quantity &&
-                        product.measureUnit &&
-                        product.quantity > 0;
-                      const comparison = hasComparison
-                        ? calculateComparativePrice(
-                            product.price,
-                            product.quantity,
-                            product.measureUnit
-                          )
-                        : null;
-
                       return (
                         <Card key={product.id} className="p-4">
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
                                 <h3 className="font-semibold text-lg">
-                                  {product.name}
+                                  {product.descricao || product.name}
                                 </h3>
-                                {product.requiresWeight && (
+                                {product.controla_estoque && (
                                   <Scale
                                     className="w-4 h-4 text-orange-600"
-                                    title="Produto por peso"
-                                  />
-                                )}
-                                {comparison && (
-                                  <Calculator
-                                    className="w-4 h-4 text-blue-600"
-                                    title="Com comparação de preço"
+                                    title="Controla estoque"
                                   />
                                 )}
                                 <Badge variant="secondary">
-                                  {product.category}
+                                  {product.grupo || product.category}
                                 </Badge>
-                                {product.icms && (
+                                {product.aliquota_icms && (
                                   <Badge variant="outline" className="text-xs">
-                                    ICMS {product.icms}%
+                                    ICMS {product.aliquota_icms}%
                                   </Badge>
                                 )}
                               </div>
-                              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                 <div>
                                   <p className="text-gray-500">Preço</p>
                                   <p className="font-semibold text-green-600">
-                                    R$ {product.price.toFixed(2)}
-                                    {product.requiresWeight
-                                      ? "/kg"
-                                      : `/${product.unit}`}
+                                    R${" "}
+                                    {formatPrice(
+                                      product.preco_venda || product.price
+                                    )}
+                                    /{product.unidade || product.unit || "UN"}
                                   </p>
                                 </div>
                                 <div>
@@ -607,33 +636,25 @@ export default function CadastroProdutos() {
                                     Código de Barras
                                   </p>
                                   <p className="font-mono text-xs">
-                                    {product.codigo_barras}
+                                    {product.codigo_barras || product.barcode}
                                   </p>
                                 </div>
                                 <div>
-                                  <p className="text-gray-500">Unidade</p>
-                                  <p>
-                                    {product.requiresWeight
-                                      ? "Por peso (kg)"
-                                      : product.unit}
+                                  <p className="text-gray-500">Código</p>
+                                  <p className="font-mono text-xs">
+                                    {product.codigo}
                                   </p>
                                 </div>
-                                {hasComparison && (
-                                  <div>
-                                    <p className="text-gray-500">Quantidade</p>
-                                    <p>
-                                      {product.quantity} {product.measureUnit}
-                                    </p>
-                                  </div>
-                                )}
-                                {comparison && (
-                                  <div>
-                                    <p className="text-gray-500">Comparativo</p>
-                                    <p className="font-semibold text-blue-600 text-xs">
-                                      {comparison.comparison}
-                                    </p>
-                                  </div>
-                                )}
+                                <div>
+                                  <p className="text-gray-500">Estoque</p>
+                                  <p>
+                                    {product.controla_estoque
+                                      ? `${Number(
+                                          product.estoque_atual || 0
+                                        )} ${product.unidade || "UN"}`
+                                      : "Não controlado"}
+                                  </p>
+                                </div>
                               </div>
                             </div>
                             <div className="flex gap-2 ml-4">
@@ -1294,7 +1315,7 @@ export default function CadastroProdutos() {
         open={showImportDialog}
         onOpenChange={setShowImportDialog}
         products={products}
-        onImportComplete={fetchProdutos}
+        onImportComplete={() => fetchProdutos()}
       />
     </div>
   );

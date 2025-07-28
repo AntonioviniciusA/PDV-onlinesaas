@@ -9,8 +9,10 @@ const {
   getCaixasFechados,
   verificaCaixaAberto,
   getHistoricoCaixas,
+  finalizarVenda,
 } = require("../controllers/caixa.controller.js");
 const autorizar = require("../middlewares/autorizar.middleware.js");
+const auth = require("../middlewares/auth.middleware.js");
 
 router.post("/abrir", autorizar, abrirCaixa);
 router.post("/fechar", autorizar, fecharCaixa);
@@ -20,4 +22,5 @@ router.get("/caixas-abertos", getCaixasAbertos);
 router.get("/caixas-fechados", getCaixasFechados);
 router.post("/verificar-caixa-aberto", verificaCaixaAberto);
 router.get("/historico", autorizar, getHistoricoCaixas);
+router.post("/finalizar-venda", auth, finalizarVenda);
 module.exports = router;

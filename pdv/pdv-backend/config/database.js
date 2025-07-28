@@ -15,6 +15,10 @@ const dbConfig = {
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 0,
+  // Configurações para garantir que DECIMAL seja retornado como número
+  decimalNumbers: true,
+  supportBigNumbers: true,
+  bigNumberStrings: false,
 };
 
 // Create connection pool

@@ -432,6 +432,232 @@ const getHistoricoCaixas = async (req, res) => {
   }
 };
 
+const finalizarVenda = async (req, res) => {
+  let connection;
+  try {
+    const {
+      cart,
+      total,
+      discount,
+      discountType,
+      discountValue,
+      paymentMethod,
+      selectedCardType,
+      mixedPayments,
+      receivedAmount,
+      changeAmount,
+      receiptType,
+      user,
+      pixPaymentConfirmed,
+      caixaId,
+      isOnline = true,
+    } = req.body;
+
+    // Validações básicas
+    if (!cart || cart.length === 0) {
+      return res.status(400).json({
+        sucesso: false,
+        mensagem: "Carrinho vazio",
+      });
+    }
+
+    if (!total || total <= 0) {
+      return res.status(400).json({
+        sucesso: false,
+        mensagem: "Valor total inválido",
+      });
+    }
+
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        sucesso: false,
+        mensagem: "Usuário não autenticado",
+      });
+    }
+
+    // Verificar se o usuário tem id_loja
+    if (!req.user.id_loja) {
+      console.log("Usuário sem id_loja, usando padrão");
+      req.user.id_loja = "00000000-0000-0000-0000-000000000000";
+    }
+
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      // Gerar ID de integração único
+      const idIntegracao = `VDA${Date.now()}${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
+
+      // Determinar forma de pagamento final
+      let formaPagamentoFinal = paymentMethod;
+      if (mixedPayments && mixedPayments.length > 0) {
+        formaPagamentoFinal = "misto";
+      } else if (paymentMethod === "cartao" && selectedCardType) {
+        formaPagamentoFinal = selectedCardType;
+      }
+
+      // Calcular desconto
+      const descontoFinal =
+        discountType === "percentage"
+          ? (total * discount) / 100
+          : discountValue || 0;
+
+      // 1. Salvar venda na tabela vendas
+      const [vendaResult] = await connection.query(
+        `INSERT INTO vendas (
+          id_loja, id_integracao, id_caixa, operador_usuario_id, 
+          data, total, desconto, status, tipo, forma_pagamento
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          req.user.id_loja,
+          idIntegracao,
+          caixaId || 1, // Usar caixa padrão se não especificado
+          req.user.id,
+          new Date().toISOString().split("T")[0],
+          total,
+          descontoFinal,
+          "pago",
+          "venda",
+          formaPagamentoFinal,
+        ]
+      );
+
+      const vendaId = vendaResult.insertId;
+
+      // 2. Salvar itens da venda
+      for (const item of cart) {
+        await connection.query(
+          `INSERT INTO venda_itens (
+            id_loja, venda_id, produto_codigo, descricao, 
+            quantidade, valor_unitario, valor_total, peso, unidade
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            req.user.id_loja,
+            vendaId,
+            item.codigo || item.codigo_barras,
+            item.descricao || item.name,
+            item.quantity,
+            item.preco_venda || item.price,
+            item.totalPrice,
+            item.weight || 0,
+            item.unidade || item.unit || "UN",
+          ]
+        );
+      }
+
+      // 3. Preparar dados do cupom/recibo
+      const cupomData = {
+        id: vendaId,
+        numero: idIntegracao,
+        timestamp: new Date().toISOString(),
+        items: cart,
+        total: total,
+        discount: discount,
+        discountType: discountType,
+        discountValue: discountValue,
+        paymentMethod: paymentMethod,
+        selectedCardType: selectedCardType,
+        mixedPayments: mixedPayments,
+        receivedAmount: receivedAmount,
+        changeAmount: changeAmount,
+        receiptType: receiptType,
+        user: user,
+        pixPaymentConfirmed: pixPaymentConfirmed,
+      };
+
+      // 4. Salvar cupom na tabela cupom
+      await connection.query(
+        `INSERT INTO cupom (
+          id_loja, numero, user_nome, timestamp, total, desconto, 
+          payment_method, received_amount, change_amount, itens, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          req.user.id_loja,
+          idIntegracao,
+          user?.name || req.user.nome,
+          new Date(),
+          total,
+          descontoFinal,
+          formaPagamentoFinal,
+          receivedAmount || 0,
+          changeAmount || 0,
+          JSON.stringify(cart),
+          isOnline ? "online" : "offline",
+        ]
+      );
+
+      // 5. Chamar função de impressão baseada no tipo de recibo
+      let printResult = null;
+      try {
+        const {
+          imprimirCupomThermal,
+          imprimirReciboThermal,
+          imprimirCupomOffline,
+          imprimirReciboOffline,
+        } = require("./cupom.controller.js");
+
+        // Criar objetos mock de req e res para as funções de impressão
+        const mockReq = { body: cupomData };
+        const mockRes = {
+          json: (data) => {
+            printResult = data;
+            return mockRes;
+          },
+          status: (code) => mockRes,
+        };
+
+        if (isOnline) {
+          if (receiptType === "fiscal") {
+            await imprimirCupomThermal(mockReq, mockRes);
+          } else {
+            await imprimirReciboThermal(mockReq, mockRes);
+          }
+        } else {
+          if (receiptType === "fiscal") {
+            await imprimirCupomOffline(mockReq, mockRes);
+          } else {
+            await imprimirReciboOffline(mockReq, mockRes);
+          }
+        }
+      } catch (printError) {
+        console.error("Erro na impressão:", printError);
+        // Não falhar a venda se a impressão falhar
+      }
+
+      await connection.commit();
+
+      return res.status(200).json({
+        sucesso: true,
+        mensagem: "Venda finalizada com sucesso",
+        venda: {
+          id: vendaId,
+          idIntegracao: idIntegracao,
+          total: total,
+          desconto: descontoFinal,
+          formaPagamento: formaPagamentoFinal,
+          status: "pago",
+          criadoEm: new Date(),
+        },
+        impressao: printResult,
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    }
+  } catch (error) {
+    console.error("Erro ao finalizar venda:", error);
+    return res.status(500).json({
+      sucesso: false,
+      mensagem: "Erro ao finalizar venda",
+      erro: error.message,
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
 module.exports = {
   abrirCaixa,
   fecharCaixa,
@@ -441,4 +667,5 @@ module.exports = {
   getCaixasFechados,
   verificaCaixaAberto,
   getHistoricoCaixas,
+  finalizarVenda,
 };

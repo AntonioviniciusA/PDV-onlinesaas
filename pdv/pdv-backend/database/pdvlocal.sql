@@ -166,8 +166,25 @@ CREATE TABLE IF NOT EXISTS produto (
   `id_loja` VARCHAR(36) NOT NULL,
   `codigo_barras` VARCHAR(13) UNIQUE NOT NULL,
   `descricao` VARCHAR(255),
+  `descricao_fiscal` VARCHAR(255),
   `grupo` VARCHAR(100) NOT NULL,
   `ncm` VARCHAR(20),
+  `origem` VARCHAR(2),
+  `cfop_entrada` VARCHAR(10),
+  `cfop_saida` VARCHAR(10),
+  `cst_entrada` VARCHAR(10),
+  `cst_saida` VARCHAR(10),
+  `modalidade_bc_icms` VARCHAR(10),
+  `aliquota_icms` DECIMAL(5,2),
+  `aliquota_ipi` DECIMAL(5,2),
+  `aliquota_pis` DECIMAL(5,2),
+  `aliquota_cofins` DECIMAL(5,2),
+  `credito_presumido` VARCHAR(50),
+  `categoria_tributaria` VARCHAR(50),
+  `cbs` DECIMAL(5,2),
+  `ibs` DECIMAL(5,2),
+  `ii` DECIMAL(5,2),
+  `afrmm_fmm` VARCHAR(50),
   `preco_custo` DECIMAL(10,2),
   `margem_lucro` DECIMAL(5,2),
   `preco_venda` DECIMAL(10,2) ,
@@ -183,7 +200,6 @@ CREATE TABLE IF NOT EXISTS produto (
   `ativo` BOOLEAN DEFAULT true,
   `exibir_tela` BOOLEAN DEFAULT true,
   `solicita_quantidade` BOOLEAN DEFAULT false,
-  `permitir_combinacao` BOOLEAN DEFAULT false,
   `cest` VARCHAR(10),
   `cst_pis` VARCHAR(10),
   `pis` DECIMAL(5,2),
@@ -192,64 +208,57 @@ CREATE TABLE IF NOT EXISTS produto (
   `criado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS notas_fiscais (
+INSERT INTO produto (
+  codigo, id_loja, codigo_barras, descricao, descricao_fiscal, grupo, ncm, origem, cfop_entrada, cfop_saida, cst_entrada, cst_saida, modalidade_bc_icms, aliquota_icms, aliquota_ipi, aliquota_pis, aliquota_cofins, credito_presumido, categoria_tributaria, cbs, ibs, ii, afrmm_fmm, preco_custo, margem_lucro, preco_venda, estoque_minimo, estoque_maximo, estoque_atual, unidade, controla_estoque, cfop, csosn, cst, icms, ativo, exibir_tela, solicita_quantidade, cest, cst_pis, pis, cst_cofins, cofins
+) VALUES
+(
+  '000000000001', '00000000-0000-0000-0000-000000000000', '7891000100101', 'Coca-Cola 350ml', 'Refrigerante Coca-Cola lata 350ml', 'Bebidas', '22021000', '0', '1102', '5102', '060', '060', '0', 18.00, 0.00, 1.65, 7.60, '', 'Tributado', 0.00, 0.00, 0.00, '', 3.00, 50.00, 4.50, 10, 100, 50, 'UN', true, '5102', '102', '060', 18.00, true, true, false, '', '01', 1.65, '01', 7.60
+),
+(
+  '000000000002', '00000000-0000-0000-0000-000000000000', '7894900011517', 'Pão Francês (kg)', 'Pão Francês vendido por kg', 'Padaria', '19059090', '0', '1102', '5102', '060', '060', '0', 7.00, 0.00, 1.65, 7.60, '', 'Tributado', 0.00, 0.00, 0.00, '', 5.00, 78.00, 8.90, 5, 50, 20, 'KG', true, '5102', '102', '060', 7.00, true, true, true, '', '01', 1.65, '01', 7.60
+),
+(
+  '000000000003', '00000000-0000-0000-0000-000000000000', '7891025100103', 'Leite Integral 1L', 'Leite Integral longa vida 1 litro', 'Laticínios', '04012010', '0', '1102', '5102', '060', '060', '0', 12.00, 0.00, 1.65, 7.60, '', 'Tributado', 0.00, 0.00, 0.00, '', 3.50, 48.57, 5.20, 8, 80, 30, 'UN', true, '5102', '102', '060', 12.00, true, true, false, '', '01', 1.65, '01', 7.60
+);
+-- Tabela de caixas
+CREATE TABLE IF NOT EXISTS caixas (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `id_loja` VARCHAR(36) NOT NULL,
-  `id_integracao` VARCHAR(50) UNIQUE NOT NULL,
-  `natureza` VARCHAR(50),
-  `cpfcnpj_emitente` VARCHAR(14),
-  `cpfcnpj_destinatario` VARCHAR(14),
-  `responsavel_cpfcnpj` VARCHAR(14),
-  `responsavel_nome` VARCHAR(100),
-  `responsavel_email` VARCHAR(100),
-  `responsavel_ddd` VARCHAR(3),
-  `responsavel_telefone` VARCHAR(20)
+  `caixa_numero` INT NOT NULL UNIQUE,
+  `status` ENUM('aberto', 'fechado') NOT NULL,
+  `valor_inicial` DECIMAL(10,2) NOT NULL,
+  `valor_final` DECIMAL(10,2) DEFAULT 0,
+  `diferenca` DECIMAL(10,2) DEFAULT 0,
+  `operador_usuario_id` INT,
+  `token` VARCHAR(20) NOT NULL,
+  `abertura_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `fechamento_em` TIMESTAMP DEFAULT NULL,
+  `abertura_usuario_id` INT NOT NULL,
+  `fechamento_usuario_id` INT DEFAULT NULL,
+  `criado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `atualizado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (`operador_usuario_id`) REFERENCES `users`(`id`),
+  FOREIGN KEY (`abertura_usuario_id`) REFERENCES `users`(`id`),
+  FOREIGN KEY (`fechamento_usuario_id`) REFERENCES `users`(`id`)
 );
 
-CREATE TABLE IF NOT EXISTS notas_fiscais_itens (
+-- Tabela de cupons fiscais
+CREATE TABLE IF NOT EXISTS cupom (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `id_loja` VARCHAR(36) NOT NULL,
-  `nota_id` INT NOT NULL,
-  `codigo` VARCHAR(50),
-  `descricao` TEXT,
-  `ncm` VARCHAR(10),
-  `cfop` VARCHAR(10),
-  `valor_unitario_comercial` DECIMAL(10,2),
-  `valor_unitario_tributavel` DECIMAL(10,2),
-  `valor_total` DECIMAL(10,2),
-  FOREIGN KEY (`nota_id`) REFERENCES `notas_fiscais`(`id`) ON DELETE CASCADE
+  `numero` VARCHAR(50) UNIQUE,
+  `user_nome` VARCHAR(100),
+  `timestamp` TIMESTAMP NOT NULL,
+  `total` DECIMAL(10,2) NOT NULL,
+  `desconto` DECIMAL(10,2) DEFAULT 0,
+  `payment_method` VARCHAR(50),
+  `received_amount` DECIMAL(10,2) DEFAULT 0,
+  `change_amount` DECIMAL(10,2) DEFAULT 0,
+  `itens` JSON,
+  `status` ENUM('online', 'offline') DEFAULT 'online',
+  `criado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `atualizado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
-CREATE TABLE notas_fiscais_tributos (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `id_loja` VARCHAR(36) NOT NULL,
-  `item_id` INT NOT NULL,
-  `icms_origem` VARCHAR(2),
-  `icms_cst` VARCHAR(3),
-  `icms_modalidade_bc` VARCHAR(2),
-  `icms_base_calculo` DECIMAL(10,2),
-  `icms_aliquota` DECIMAL(10,2),
-  `icms_valor` DECIMAL(10,2),
-  `pis_cst` VARCHAR(3),
-  `pis_base_calculo` DECIMAL(10,2),
-  `pis_quantidade` DECIMAL(10,4),
-  `pis_aliquota` DECIMAL(10,2),
-  `pis_valor` DECIMAL(10,2),
-  `cofins_cst` VARCHAR(3),
-  `cofins_base_calculo` DECIMAL(10,2),
-  `cofins_aliquota` DECIMAL(10,2),
-  `cofins_valor` DECIMAL(10,2),
-  FOREIGN KEY (`item_id`) REFERENCES `notas_fiscais_itens`(`id`) ON DELETE CASCADE
-);
-CREATE TABLE notas_fiscais_pagamentos (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `id_loja` VARCHAR(36) NOT NULL,
-  `nota_id` INT NOT NULL,
-  `a_vista` BOOLEAN,
-  `meio` VARCHAR(5),
-  `valor` DECIMAL(10,2),
-  FOREIGN KEY (`nota_id`) REFERENCES `notas_fiscais`(`id`) ON DELETE CASCADE
-);
-
 
 -- Tabela de recibos
 CREATE TABLE IF NOT EXISTS recibos (
@@ -282,27 +291,8 @@ CREATE TABLE IF NOT EXISTS recibo_itens (
   FOREIGN KEY (`recibo_id`) REFERENCES `recibos`(`id`) ON DELETE CASCADE
 );
 
--- Tabela de caixas
-CREATE TABLE IF NOT EXISTS caixas (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `id_loja` VARCHAR(36) NOT NULL,
-  `caixa_numero` INT NOT NULL UNIQUE,
-  `status` ENUM('aberto', 'fechado') NOT NULL,
-  `valor_inicial` DECIMAL(10,2) NOT NULL,
-  `valor_final` DECIMAL(10,2) DEFAULT 0,
-  `diferenca` DECIMAL(10,2) DEFAULT 0,
-  `operador_usuario_id` INT,
-  `token` VARCHAR(20) NOT NULL,
-  `abertura_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  `fechamento_em` TIMESTAMP DEFAULT NULL,
-  `abertura_usuario_id` INT NOT NULL,
-  `fechamento_usuario_id` INT DEFAULT NULL,
-  `criado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  `atualizado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (`operador_usuario_id`) REFERENCES `users`(`id`),
-  FOREIGN KEY (`abertura_usuario_id`) REFERENCES `users`(`id`),
-  FOREIGN KEY (`fechamento_usuario_id`) REFERENCES `users`(`id`)
-);
+
+
 -- Tabela de vendas
 CREATE TABLE IF NOT EXISTS vendas (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
@@ -315,14 +305,33 @@ CREATE TABLE IF NOT EXISTS vendas (
   `desconto` DECIMAL(10,2) DEFAULT 0,
   `status` ENUM('pendente', 'pago', 'cancelado') NOT NULL,
   `tipo` ENUM('venda', 'troca') NOT NULL,
-  `forma_pagamento` ENUM('dinheiro', 'cartao', 'pix', 'cheque', 'boleto', 'debito', 'credito') NOT NULL,
+  `forma_pagamento` ENUM('dinheiro', 'cartao', 'pix', 'cheque', 'boleto', 'debito', 'credito', 'misto') NOT NULL,
   `parcelas` INT DEFAULT 1,
   `parcelas_pagas` INT DEFAULT 0,
   `parcelas_restantes` INT DEFAULT 0,
   `criado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `atualizado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`operador_usuario_id`) REFERENCES `users`(`id`),
-  FOREIGN KEY (`id_integracao`) REFERENCES `recibos`(`id_integracao`) ON DELETE CASCADE
+  FOREIGN KEY (`id_caixa`) REFERENCES `caixas`(`id`)
+);
+
+
+
+-- Tabela de itens de vendas
+CREATE TABLE IF NOT EXISTS venda_itens (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `id_loja` VARCHAR(36) NOT NULL,
+  `venda_id` INT NOT NULL,
+  `produto_codigo` VARCHAR(13),
+  `descricao` VARCHAR(255) NOT NULL,
+  `quantidade` DECIMAL(10,3) NOT NULL,
+  `valor_unitario` DECIMAL(10,2) NOT NULL,
+  `valor_total` DECIMAL(10,2) NOT NULL,
+  `peso` DECIMAL(10,3) DEFAULT 0,
+  `unidade` VARCHAR(10) DEFAULT 'UN',
+  `criado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`venda_id`) REFERENCES `vendas`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`produto_codigo`) REFERENCES `produto`(`codigo`)
 );
 
 -- Criação da tabela de configurações de etiqueta
@@ -451,3 +460,5 @@ SELECT * FROM (
 WHERE NOT EXISTS (
   SELECT 1 FROM configuracoes_sistema WHERE id_loja = '00000000-0000-0000-0000-000000000000'
 );
+
+
