@@ -446,6 +446,13 @@ CREATE TABLE IF NOT EXISTS configuracoes_sistema (
   `id_loja` VARCHAR(36) NOT NULL,
   `link_api_cupom` VARCHAR(255) NOT NULL,
   `timezone` VARCHAR(50) DEFAULT 'America/Sao_Paulo',
+  `logo` MEDIUMBLOB,
+  `bd_backup` BOOLEAN DEFAULT false,
+  `bd_central` BOOLEAN DEFAULT false,
+  `url_servidor_central` VARCHAR(255) DEFAULT '',
+  `sincronizacao_automatico` BOOLEAN DEFAULT false,
+  `intervalo_sincronizacao` INT DEFAULT 10,
+  `criado_em` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `atualizado_em` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 

@@ -9,6 +9,8 @@ import {
   User,
   LogOut,
   Settings,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
 import { localAuthService } from "../services/localAuthService";
@@ -23,6 +25,52 @@ export default function PdvNav({
   onCloseNav,
   user,
 }) {
+  const [isFullscreen, setIsFullscreen] = React.useState(false);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement
+        .requestFullscreen()
+        .then(() => {
+          setIsFullscreen(true);
+        })
+        .catch((err) => {
+          console.log("Erro ao entrar em tela cheia:", err);
+        });
+    } else {
+      document
+        .exitFullscreen()
+        .then(() => {
+          setIsFullscreen(false);
+        })
+        .catch((err) => {
+          console.log("Erro ao sair da tela cheia:", err);
+        });
+    }
+  };
+
+  // Listener para detectar mudanças no estado de tela cheia
+  React.useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    const handleKeyDown = (e) => {
+      // F11 para alternar tela cheia
+      if (e.key === "F11") {
+        e.preventDefault();
+        toggleFullscreen();
+      }
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
   return (
     <div className="flex-shrink-0 p-4 border-b bg-black relative">
       {/* Botão para fechar o nav */}
@@ -42,6 +90,27 @@ export default function PdvNav({
         </div>
         <div className="flex gap-2">
           <KeyboardShortcutsHelp shortcuts={shortcuts} />
+
+          <Button
+            onClick={toggleFullscreen}
+            variant="outline"
+            size="sm"
+            title={
+              isFullscreen
+                ? "Sair da tela cheia (F11)"
+                : "Entrar em tela cheia (F11)"
+            }
+          >
+            {isFullscreen ? (
+              <Minimize2 className="w-4 h-4 mr-2" />
+            ) : (
+              <Maximize2 className="w-4 h-4 mr-2" />
+            )}
+            <span className="hidden sm:inline">
+              {isFullscreen ? "Sair Tela Cheia" : "Tela Cheia"}
+            </span>
+            <span className="sm:hidden">F11</span>
+          </Button>
 
           <Button
             onClick={() => {

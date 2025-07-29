@@ -24,12 +24,18 @@ const getConfiguracoes = async (req, res) => {
       // Criar configuração padrão se não existir
       const [result] = await connection.query(
         `INSERT INTO configuracoes_sistema (
-          id_loja, link_api_cupom, timezone
-        ) VALUES (?, ?, ?)`,
+          id_loja, link_api_cupom, timezone, bd_backup, bd_central, 
+          url_servidor_central, sincronizacao_automatico, intervalo_sincronizacao
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           req.user.id_loja,
           "http://localhost:3000/api/cupom",
           "America/Sao_Paulo",
+          false,
+          false,
+          "",
+          false,
+          10,
         ]
       );
 
@@ -41,6 +47,11 @@ const getConfiguracoes = async (req, res) => {
           id_loja: req.user.id_loja,
           link_api_cupom: "http://localhost:3000/api/cupom",
           timezone: "America/Sao_Paulo",
+          bd_backup: false,
+          bd_central: false,
+          url_servidor_central: "",
+          sincronizacao_automatico: false,
+          intervalo_sincronizacao: 10,
           atualizado_em: new Date(),
         },
       });
@@ -69,7 +80,15 @@ const getConfiguracoes = async (req, res) => {
 const updateConfiguracoes = async (req, res) => {
   let connection;
   try {
-    const { link_api_cupom, timezone } = req.body;
+    const {
+      link_api_cupom,
+      timezone,
+      bd_backup,
+      bd_central,
+      url_servidor_central,
+      sincronizacao_automatico,
+      intervalo_sincronizacao,
+    } = req.body;
 
     if (!req.user || !req.user.id_loja) {
       return res.status(400).json({
@@ -90,12 +109,18 @@ const updateConfiguracoes = async (req, res) => {
       // Criar nova configuração
       const [result] = await connection.query(
         `INSERT INTO configuracoes_sistema (
-          id_loja, link_api_cupom, timezone
-        ) VALUES (?, ?, ?)`,
+          id_loja, link_api_cupom, timezone, bd_backup, bd_central, 
+          url_servidor_central, sincronizacao_automatico, intervalo_sincronizacao
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           req.user.id_loja,
           link_api_cupom || "http://localhost:3000/api/cupom",
           timezone || "America/Sao_Paulo",
+          bd_backup || false,
+          bd_central || false,
+          url_servidor_central || "",
+          sincronizacao_automatico || false,
+          intervalo_sincronizacao || 10,
         ]
       );
 
@@ -107,6 +132,11 @@ const updateConfiguracoes = async (req, res) => {
           id_loja: req.user.id_loja,
           link_api_cupom: link_api_cupom || "http://localhost:3000/api/cupom",
           timezone: timezone || "America/Sao_Paulo",
+          bd_backup: bd_backup || false,
+          bd_central: bd_central || false,
+          url_servidor_central: url_servidor_central || "",
+          sincronizacao_automatico: sincronizacao_automatico || false,
+          intervalo_sincronizacao: intervalo_sincronizacao || 10,
           atualizado_em: new Date(),
         },
       });
@@ -116,11 +146,21 @@ const updateConfiguracoes = async (req, res) => {
         `UPDATE configuracoes_sistema SET 
           link_api_cupom = ?, 
           timezone = ?,
+          bd_backup = ?,
+          bd_central = ?,
+          url_servidor_central = ?,
+          sincronizacao_automatico = ?,
+          intervalo_sincronizacao = ?,
           atualizado_em = CURRENT_TIMESTAMP
         WHERE id_loja = ?`,
         [
           link_api_cupom || "http://localhost:3000/api/cupom",
           timezone || "America/Sao_Paulo",
+          bd_backup || false,
+          bd_central || false,
+          url_servidor_central || "",
+          sincronizacao_automatico || false,
+          intervalo_sincronizacao || 10,
           req.user.id_loja,
         ]
       );
