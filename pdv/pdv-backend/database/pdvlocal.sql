@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
   `nome` VARCHAR(100) NOT NULL,
   `email` VARCHAR(100) NOT NULL UNIQUE,
   `senha` VARCHAR(255) NOT NULL,
-  `perfil` ENUM('admin', 'operador', 'gerente') DEFAULT 'operador',
+  `perfil` ENUM('admin', 'operador', 'gerente', 'fiscal') DEFAULT 'operador',
   `permissions` JSON DEFAULT NULL,
   `ativo` BOOLEAN DEFAULT true,
   `criado_em` DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -38,9 +38,9 @@ SELECT * FROM (
     '00000000-0000-0000-0000-000000000000' AS id_loja,
     'Administrador' AS nome,
     'admin@dominio.com' AS email,
-    '$2a$10$yjkeg.NF9hK0sxQ/P5CLo.LdhE9B3U1fwXTOLYlB7VrKgN/lccgvi' AS senha, -- hash de admin123
+    '$2a$10$yjkeg.NF9hK0sxQ/P5CLo.LdhE9B3U1fwXTOLYlB7VrKgN/lccgvi' AS senha, -- admin123
     'admin' AS perfil,
-    '["pdv.products", "pdv.authorize", "pdv.operate", "pdv.reports", "pdv.cash", "pdv.labels"]' AS permissions,
+    '["*"]' AS permissions,
     1 AS ativo
 ) AS tmp
 WHERE NOT EXISTS (
@@ -64,7 +64,7 @@ SELECT * FROM (
     'joao.caixa@dominio.com' AS email,
     '$2a$10$yjkeg.NF9hK0sxQ/P5CLo.LdhE9B3U1fwXTOLYlB7VrKgN/lccgvi' AS senha,
     'operador' AS perfil,
-    '["pdv.operate","pdv.authorize","products.manage","reports.manage","cash.manage","labels.config","pdv.products"]' AS permissions,
+    '["pdv.operate","products.view","products.manage","reports.manage","labels.config","pdv.products"]' AS permissions,
     1 AS ativo
 ) AS tmp
 WHERE NOT EXISTS (
@@ -87,8 +87,8 @@ SELECT * FROM (
     'Maria Santos' AS nome,
     'maria.fiscal@dominio.com' AS email,
     '$2a$10$yjkeg.NF9hK0sxQ/P5CLo.LdhE9B3U1fwXTOLYlB7VrKgN/lccgvi' AS senha,
-    'operador' AS perfil,
-    '["pdv.operate","pdv.authorize","reports.view"]' AS permissions,
+    'fiscal' AS perfil,
+    '["pdv.operate","pdv.authorize","products.view","reports.view"]' AS permissions,
     1 AS ativo
 ) AS tmp
 WHERE NOT EXISTS (
@@ -112,7 +112,7 @@ SELECT * FROM (
     'carlos.supervisor@dominio.com' AS email,
     '$2a$10$yjkeg.NF9hK0sxQ/P5CLo.LdhE9B3U1fwXTOLYlB7VrKgN/lccgvi' AS senha,
     'gerente' AS perfil,
-    '["pdv.operate","pdv.authorize","products.view","reports.view","cash.manage", "pdv.products"]' AS permissions,
+    '["pdv.operate","pdv.authorize","products.view","reports.view","cash.manage", "pdv.products", "manage.users"]' AS permissions,
     1 AS ativo
 ) AS tmp
 WHERE NOT EXISTS (
@@ -233,13 +233,13 @@ CREATE TABLE IF NOT EXISTS caixas (
   `token` VARCHAR(20) NOT NULL,
   `abertura_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `fechamento_em` TIMESTAMP DEFAULT NULL,
-  `abertura_usuario_id` INT NOT NULL,
-  `fechamento_usuario_id` INT DEFAULT NULL,
+  `abertura_autorizador_id` INT DEFAULT NULL,
+  `fechamento_autorizador_id` INT DEFAULT NULL,
   `criado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `atualizado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`operador_usuario_id`) REFERENCES `users`(`id`),
-  FOREIGN KEY (`abertura_usuario_id`) REFERENCES `users`(`id`),
-  FOREIGN KEY (`fechamento_usuario_id`) REFERENCES `users`(`id`)
+  FOREIGN KEY (`abertura_autorizador_id`) REFERENCES `users`(`id`),
+  FOREIGN KEY (`fechamento_autorizador_id`) REFERENCES `users`(`id`)
 );
 
 -- Tabela de cupons fiscais
@@ -444,8 +444,11 @@ WHERE NOT EXISTS (
 CREATE TABLE IF NOT EXISTS configuracoes_sistema (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `id_loja` VARCHAR(36) NOT NULL,
+  `numero_caixa` INT DEFAULT 1,
   `link_api_cupom` VARCHAR(255) NOT NULL,
   `timezone` VARCHAR(50) DEFAULT 'America/Sao_Paulo',
+  `token_acesso` VARCHAR(500) DEFAULT NULL,
+  `token_expiracao` DATETIME DEFAULT NULL,
   `logo` MEDIUMBLOB,
   `bd_backup` BOOLEAN DEFAULT false,
   `bd_central` BOOLEAN DEFAULT false,
@@ -458,289 +461,18 @@ CREATE TABLE IF NOT EXISTS configuracoes_sistema (
 
 INSERT INTO configuracoes_sistema (
   id_loja,
+  numero_caixa,
   link_api_cupom,
   timezone
 )
 SELECT * FROM (
   SELECT
     '00000000-0000-0000-0000-000000000000' AS id_loja,
+    1 AS numero_caixa,
     'http://localhost:3000/api/cupom' AS link_api_cupom,
     'America/Sao_Paulo' AS timezone
 ) AS tmp
 WHERE NOT EXISTS (
   SELECT 1 FROM configuracoes_sistema WHERE id_loja = '00000000-0000-0000-0000-000000000000'
 );
-
--- Inserir caixa de exemplo
-INSERT INTO caixas (
-  id_loja,
-  caixa_numero,
-  status,
-  valor_inicial,
-  token,
-  abertura_usuario_id,
-  operador_usuario_id
-)
-SELECT * FROM (
-  SELECT
-    '00000000-0000-0000-0000-000000000000' AS id_loja,
-    1 AS caixa_numero,
-    'aberto' AS status,
-    100.00 AS valor_inicial,
-    '12345678901234567890' AS token,
-    1 AS abertura_usuario_id,
-    1 AS operador_usuario_id
-) AS tmp
-WHERE NOT EXISTS (
-  SELECT 1 FROM caixas WHERE caixa_numero = 1 AND id_loja = '00000000-0000-0000-0000-000000000000'
-);
-INSERT INTO caixas (
-  id_loja,
-  caixa_numero,
-  status,
-  valor_inicial,
-  token,
-  abertura_usuario_id,
-  operador_usuario_id
-)
-SELECT * FROM (
-  SELECT
-    '00000000-0000-0000-0000-000000000000' AS id_loja,
-    2 AS caixa_numero,
-    'aberto' AS status,
-    100.00 AS valor_inicial,
-    '12345678901234567880' AS token,
-    1 AS abertura_usuario_id,
-    1 AS operador_usuario_id
-) AS tmp
-WHERE NOT EXISTS (
-  SELECT 1 FROM caixas WHERE caixa_numero = 2 AND id_loja = '00000000-0000-0000-0000-000000000000'
-);
--- Inserir vendas de exemplo
-INSERT INTO vendas (
-  id_loja,
-  id_integracao,
-  id_caixa,
-  operador_usuario_id,
-  data,
-  total,
-  desconto,
-  status,
-  tipo,
-  forma_pagamento
-)
-SELECT * FROM (
-  SELECT
-    '00000000-0000-0000-0000-000000000000' AS id_loja,
-    'VDA001' AS id_integracao,
-    1 AS id_caixa,
-    1 AS operador_usuario_id,
-    CURDATE() AS data,
-    17.90 AS total,
-    0.00 AS desconto,
-    'pago' AS status,
-    'venda' AS tipo,
-    'pix' AS forma_pagamento
-) AS tmp
-WHERE NOT EXISTS (
-  SELECT 1 FROM vendas WHERE id_integracao = 'VDA001'
-);
-
-INSERT INTO vendas (
-  id_loja,
-  id_integracao,
-  id_caixa,
-  operador_usuario_id,
-  data,
-  total,
-  desconto,
-  status,
-  tipo,
-  forma_pagamento
-)
-SELECT * FROM (
-  SELECT
-    '00000000-0000-0000-0000-000000000000' AS id_loja,
-    'VDA002' AS id_integracao,
-    1 AS id_caixa,
-    2 AS operador_usuario_id,
-    CURDATE() AS data,
-    54.10 AS total,
-    2.70 AS desconto,
-    'pago' AS status,
-    'venda' AS tipo,
-    'cartao' AS forma_pagamento
-) AS tmp
-WHERE NOT EXISTS (
-  SELECT 1 FROM vendas WHERE id_integracao = 'VDA002'
-);
-
-INSERT INTO vendas (
-  id_loja,
-  id_integracao,
-  id_caixa,
-  operador_usuario_id,
-  data,
-  total,
-  desconto,
-  status,
-  tipo,
-  forma_pagamento
-)
-SELECT * FROM (
-  SELECT
-    '00000000-0000-0000-0000-000000000000' AS id_loja,
-    'VDA003' AS id_integracao,
-    2 AS id_caixa,
-    1 AS operador_usuario_id,
-    CURDATE() AS data,
-    11.10 AS total,
-    0.00 AS desconto,
-    'pago' AS status,
-    'venda' AS tipo,
-    'dinheiro' AS forma_pagamento
-) AS tmp
-WHERE NOT EXISTS (
-  SELECT 1 FROM vendas WHERE id_integracao = 'VDA003'
-);
-
--- Inserir itens das vendas
-INSERT INTO venda_itens (
-  id_loja,
-  venda_id,
-  produto_codigo,
-  descricao,
-  quantidade,
-  valor_unitario,
-  valor_total
-)
-SELECT * FROM (
-  SELECT
-    '00000000-0000-0000-0000-000000000000' AS id_loja,
-    (SELECT id FROM vendas WHERE id_integracao = 'VDA001') AS venda_id,
-    '000000000001' AS produto_codigo,
-    'Coca-Cola 350ml' AS descricao,
-    2 AS quantidade,
-    4.50 AS valor_unitario,
-    9.00 AS valor_total
-) AS tmp
-WHERE NOT EXISTS (
-  SELECT 1 FROM venda_itens WHERE venda_id = (SELECT id FROM vendas WHERE id_integracao = 'VDA001') AND produto_codigo = '000000000001'
-);
-
-INSERT INTO venda_itens (
-  id_loja,
-  venda_id,
-  produto_codigo,
-  descricao,
-  quantidade,
-  valor_unitario,
-  valor_total
-)
-SELECT * FROM (
-  SELECT
-    '00000000-0000-0000-0000-000000000000' AS id_loja,
-    (SELECT id FROM vendas WHERE id_integracao = 'VDA001') AS venda_id,
-    '000000000002' AS produto_codigo,
-    'Pão Francês (kg)' AS descricao,
-    1 AS quantidade,
-    8.90 AS valor_unitario,
-    8.90 AS valor_total
-) AS tmp
-WHERE NOT EXISTS (
-  SELECT 1 FROM venda_itens WHERE venda_id = (SELECT id FROM vendas WHERE id_integracao = 'VDA001') AND produto_codigo = '000000000002'
-);
-
-INSERT INTO venda_itens (
-  id_loja,
-  venda_id,
-  produto_codigo,
-  descricao,
-  quantidade,
-  valor_unitario,
-  valor_total
-)
-SELECT * FROM (
-  SELECT
-    '00000000-0000-0000-0000-000000000000' AS id_loja,
-    (SELECT id FROM vendas WHERE id_integracao = 'VDA002') AS venda_id,
-    '000000000003' AS produto_codigo,
-    'Leite Integral 1L' AS descricao,
-    3 AS quantidade,
-    5.20 AS valor_unitario,
-    15.60 AS valor_total
-) AS tmp
-WHERE NOT EXISTS (
-  SELECT 1 FROM venda_itens WHERE venda_id = (SELECT id FROM vendas WHERE id_integracao = 'VDA002') AND produto_codigo = '000000000003'
-);
-
-INSERT INTO venda_itens (
-  id_loja,
-  venda_id,
-  produto_codigo,
-  descricao,
-  quantidade,
-  valor_unitario,
-  valor_total
-)
-SELECT * FROM (
-  SELECT
-    '00000000-0000-0000-0000-000000000000' AS id_loja,
-    (SELECT id FROM vendas WHERE id_integracao = 'VDA002') AS venda_id,
-    '000000000002' AS produto_codigo,
-    'Pão Francês (kg)' AS descricao,
-    2 AS quantidade,
-    8.90 AS valor_unitario,
-    17.80 AS valor_total
-) AS tmp
-WHERE NOT EXISTS (
-  SELECT 1 FROM venda_itens WHERE venda_id = (SELECT id FROM vendas WHERE id_integracao = 'VDA002') AND produto_codigo = '000000000002'
-);
-
-INSERT INTO venda_itens (
-  id_loja,
-  venda_id,
-  produto_codigo,
-  descricao,
-  quantidade,
-  valor_unitario,
-  valor_total
-)
-SELECT * FROM (
-  SELECT
-    '00000000-0000-0000-0000-000000000000' AS id_loja,
-    (SELECT id FROM vendas WHERE id_integracao = 'VDA003') AS venda_id,
-    '000000000001' AS produto_codigo,
-    'Coca-Cola 350ml' AS descricao,
-    1 AS quantidade,
-    4.50 AS valor_unitario,
-    4.50 AS valor_total
-) AS tmp
-WHERE NOT EXISTS (
-  SELECT 1 FROM venda_itens WHERE venda_id = (SELECT id FROM vendas WHERE id_integracao = 'VDA003') AND produto_codigo = '000000000001'
-);
-
-INSERT INTO venda_itens (
-  id_loja,
-  venda_id,
-  produto_codigo,
-  descricao,
-  quantidade,
-  valor_unitario,
-  valor_total
-)
-SELECT * FROM (
-  SELECT
-    '00000000-0000-0000-0000-000000000000' AS id_loja,
-    (SELECT id FROM vendas WHERE id_integracao = 'VDA003') AS venda_id,
-    '000000000003' AS produto_codigo,
-    'Leite Integral 1L' AS descricao,
-    1 AS quantidade,
-    5.20 AS valor_unitario,
-    5.20 AS valor_total
-) AS tmp
-WHERE NOT EXISTS (
-  SELECT 1 FROM venda_itens WHERE venda_id = (SELECT id FROM vendas WHERE id_integracao = 'VDA003') AND produto_codigo = '000000000003'
-);
-
 

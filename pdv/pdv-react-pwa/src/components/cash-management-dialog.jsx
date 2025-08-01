@@ -23,8 +23,8 @@ import {
   Clock,
 } from "lucide-react";
 import { hasPermission } from "../utils/permissions";
-import { caixaService } from "../services/caixaServices";
-import { localAuthService } from "../services/localAuthService";
+import { useCaixa } from "../hooks/useCaixa";
+
 import RequestAuthorization from "./RequestAuthorization";
 
 export function CashManagementDialog({
@@ -43,29 +43,32 @@ export function CashManagementDialog({
   const [permission, setPermission] = useState(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
-  const [caixa_numero, setCaixaNumero] = useState(1);
+
+  // Usar o hook useCaixa para gerenciar o estado do caixa
+  const { abrirCaixa, fecharCaixa, verificarCaixaAberto } = useCaixa();
 
   useEffect(() => {
     if (!user) return;
-    const permission = hasPermission(user, "cash", "manage");
+    const permission =
+      hasPermission(user, "cash.manage") ||
+      hasPermission(user, "pdv.cash") ||
+      hasPermission(user, "*");
     setPermission(permission);
   }, [user]);
 
   const handleAbrirCaixa = async (e) => {
     e.preventDefault();
     const valor = parseFloat(amount);
-    const numeroCaixa = parseInt(caixa_numero, 10);
 
     if (permission === true) {
+      console.log("Abrindo caixa, permissao: ", permission);
+      console.log("Abrindo caixa, user permissions: ", user.permissions);
       try {
-        const response = await caixaService.abrirCaixa(
-          valor,
-          user,
-          numeroCaixa
-        );
-
+        const response = await abrirCaixa(valor, user);
         onConfirm && onConfirm(response);
         onOpenChange(false);
+        // Refazer a query para atualizar os dados
+        verificarCaixaAberto();
       } catch (err) {
         alert("Erro ao abrir caixa: " + (err?.message || ""));
       }
@@ -73,15 +76,21 @@ export function CashManagementDialog({
       setShowAuthDialog(true);
       setPendingAction(() => async (usuario) => {
         try {
-          const response = await caixaService.abrirCaixa(
-            valor,
-            usuario,
-            numeroCaixa
-          );
+          console.log("Abrindo caixa, permissao: ", permission);
+          console.log("Usuario autorizado:", usuario);
+
+          const response = await abrirCaixa(valor, usuario);
+
           onConfirm && onConfirm(response);
           onOpenChange(false);
+          // Refazer a query para atualizar os dados
+          verificarCaixaAberto();
         } catch (err) {
-          alert("Erro ao abrir caixa: " + (err?.message || ""));
+          console.error("Erro ao abrir caixa:", err);
+          alert(
+            "Erro ao abrir caixa: " +
+              (err?.response?.data?.mensagem || err?.message || "")
+          );
         }
       });
     }
@@ -90,14 +99,14 @@ export function CashManagementDialog({
   const handleFecharCaixa = async (e) => {
     e.preventDefault();
     const valor = parseFloat(amount);
-    const numeroCaixa = parseInt(caixa_numero, 10);
 
     if (permission === true) {
       try {
-        await caixaService.fecharCaixa(valor, user, numeroCaixa);
-
+        await fecharCaixa(valor, user);
         onConfirm && onConfirm(valor);
         onOpenChange(false);
+        // Refazer a query para atualizar os dados
+        verificarCaixaAberto();
       } catch (err) {
         alert("Erro ao fechar caixa: " + (err?.message || ""));
       }
@@ -105,13 +114,19 @@ export function CashManagementDialog({
       setShowAuthDialog(true);
       setPendingAction(() => async (usuario) => {
         try {
-          await caixaService.fecharCaixa(valor, usuario, numeroCaixa);
+          console.log("Fechando caixa, usuario autorizado:", usuario);
+          await fecharCaixa(valor, usuario);
 
           onConfirm && onConfirm(valor);
           onOpenChange(false);
+          // Refazer a query para atualizar os dados
+          verificarCaixaAberto();
         } catch (err) {
-          alert(err?.message);
-          console.log(err);
+          console.error("Erro ao fechar caixa:", err);
+          alert(
+            "Erro ao fechar caixa: " +
+              (err?.response?.data?.mensagem || err?.message || "")
+          );
         }
       });
     }
@@ -120,42 +135,52 @@ export function CashManagementDialog({
   const generateReport = () => {
     if (!currentSession) return;
 
-    const difference =
-      Number.parseFloat(amount) -
-      (currentSession.initialAmount + currentSession.totalSales);
+    const initialAmount = Number(currentSession.initialAmount) || 0;
+    const totalSales = Number(currentSession.totalSales) || 0;
+    const finalAmount = Number(amount) || 0;
+    const totalTransactions = Number(currentSession.totalTransactions) || 0;
+    const difference = finalAmount - (initialAmount + totalSales);
+
+    // Tratar a data de abertura
+    let openedAtString = "Data não disponível";
+    try {
+      if (currentSession.openedAt) {
+        openedAtString = new Date(currentSession.openedAt).toLocaleString(
+          "pt-BR"
+        );
+      }
+    } catch (error) {
+      console.warn("Erro ao formatar data de abertura:", error);
+    }
 
     const report = `
 RELATÓRIO DE FECHAMENTO DE CAIXA
 ================================
 
-Operador: ${currentSession.openedBy}
-Abertura: ${new Date(currentSession.openedAt).toLocaleString("pt-BR")}
+Operador: ${currentSession.openedBy || "Não informado"}
+Abertura: ${openedAtString}
 Fechamento: ${new Date().toLocaleString("pt-BR")}
 
 VALORES:
 --------
-Valor Inicial: R$ ${currentSession.initialAmount.toFixed(2)}
-Total em Vendas: R$ ${currentSession.totalSales.toFixed(2)}
-Valor Esperado: R$ ${(
-      currentSession.initialAmount + currentSession.totalSales
-    ).toFixed(2)}
-Valor Informado: R$ ${Number.parseFloat(amount).toFixed(2)}
+Valor Inicial: R$ ${initialAmount.toFixed(2)}
+Total em Vendas: R$ ${totalSales.toFixed(2)}
+Valor Esperado: R$ ${(initialAmount + totalSales).toFixed(2)}
+Valor Informado: R$ ${finalAmount.toFixed(2)}
 Diferença: R$ ${difference.toFixed(2)} ${
       difference >= 0 ? "(Sobra)" : "(Falta)"
     }
 
 TRANSAÇÕES:
 -----------
-Total de Vendas: ${currentSession.totalTransactions}
+Total de Vendas: ${totalTransactions}
 Ticket Médio: R$ ${
-      currentSession.totalTransactions > 0
-        ? (
-            currentSession.totalSales / currentSession.totalTransactions
-          ).toFixed(2)
+      totalTransactions > 0
+        ? (totalSales / totalTransactions).toFixed(2)
         : "0.00"
     }
 
-Fechado por: ${userName}
+Fechado por: ${userName || "Não informado"}
 Data/Hora: ${new Date().toLocaleString("pt-BR")}
     `;
 
@@ -164,10 +189,49 @@ Data/Hora: ${new Date().toLocaleString("pt-BR")}
     setShowReport(false);
   };
 
-  const expectedAmount = currentSession
-    ? currentSession.initialAmount + currentSession.totalSales
+  const initialAmount = currentSession
+    ? Number(currentSession.initialAmount) || 0
     : 0;
-  const difference = amount ? Number.parseFloat(amount) - expectedAmount : 0;
+  const totalSales = currentSession
+    ? Number(currentSession.totalSales) || 0
+    : 0;
+  const expectedAmount = initialAmount + totalSales;
+  const finalAmount = Number(amount) || 0;
+  const difference = finalAmount - expectedAmount;
+
+  // Verificar se currentSession existe antes de renderizar
+  if (action === "close" && !currentSession) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          className="max-w-md"
+          aria-describedby="cash-management-error-dialog-description"
+        >
+          <DialogDescription id="cash-management-error-dialog-description">
+            Erro ao tentar fechar o caixa.
+          </DialogDescription>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="w-5 h-5" />
+              Erro
+            </DialogTitle>
+          </DialogHeader>
+          <div className="text-center py-4">
+            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <p className="text-red-600 font-semibold">
+              Nenhuma sessão de caixa encontrada para fechamento.
+            </p>
+            <p className="text-sm text-gray-600 mt-2">
+              Verifique se o caixa está aberto antes de tentar fechá-lo.
+            </p>
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={() => onOpenChange(false)}>Fechar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -199,30 +263,6 @@ Data/Hora: ${new Date().toLocaleString("pt-BR")}
                     operações.
                   </AlertDescription>
                 </Alert>
-                <div className="mt-4">
-                  <Label htmlFor="caixa_numero">Número do Caixa *</Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-3 text-gray-500">
-                      Nº
-                    </span>
-                    <Input
-                      id="caixa_numero"
-                      type="number"
-                      step="1"
-                      min="1"
-                      value={caixa_numero}
-                      onChange={(e) => setCaixaNumero(e.target.value)}
-                      placeholder="0,00"
-                      className="pl-10 text-lg font-semibold"
-                      required
-                      autoFocus
-                      autoComplete="off"
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Número do caixa: {caixa_numero}
-                  </p>
-                </div>
                 <div className="mt-4">
                   <Label htmlFor="initialAmount">Valor Inicial *</Label>
                   <div className="relative">
@@ -262,13 +302,13 @@ Data/Hora: ${new Date().toLocaleString("pt-BR")}
                     <div className="flex justify-between">
                       <span>Valor Inicial:</span>
                       <span className="font-semibold">
-                        R$ {currentSession.initialAmount.toFixed(2)}
+                        R$ {initialAmount.toFixed(2)}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Total em Vendas:</span>
                       <span className="font-semibold text-green-600">
-                        R$ {currentSession.totalSales.toFixed(2)}
+                        R$ {totalSales.toFixed(2)}
                       </span>
                     </div>
                     <Separator />
@@ -304,7 +344,7 @@ Data/Hora: ${new Date().toLocaleString("pt-BR")}
                   </div>
                 </div>
 
-                {amount && (
+                {amount && amount.trim() !== "" && (
                   <div className="bg-gray-50 p-3 rounded-lg">
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Diferença:</span>
@@ -370,12 +410,16 @@ Data/Hora: ${new Date().toLocaleString("pt-BR")}
       <RequestAuthorization
         open={showAuthDialog}
         onOpenChange={setShowAuthDialog}
-        onSuccess={(user, autorizador) => {
+        onSuccess={(usuario) => {
           setShowAuthDialog(false);
           if (pendingAction) {
-            pendingAction(user, autorizador);
+            pendingAction(usuario);
             setPendingAction(null);
           }
+        }}
+        onCloseRequestAuthorization={() => {
+          setShowAuthDialog(false);
+          setPendingAction(null);
         }}
         title={
           action === "open"

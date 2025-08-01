@@ -59,6 +59,7 @@ import {
   DialogTitle,
 } from "../components/ui/dialog.jsx";
 import { useIsAuthenticated, useUser } from "../hooks/useAuth";
+import { useCaixa } from "../hooks/useCaixa";
 import beepSound from "../assets/sounds/beep.mp3";
 
 export default function PDVCaixa() {
@@ -97,7 +98,12 @@ export default function PDVCaixa() {
   const [showCashManagement, setShowCashManagement] = useState(false);
   const [showReceiptSelection, setShowReceiptSelection] = useState(false);
   const [cashAction, setCashAction] = useState("open");
-  const [cashSession, setCashSession] = useState(null);
+  const {
+    cashSession,
+    abrirCaixa,
+    fecharCaixa,
+    loading: caixaLoading,
+  } = useCaixa();
 
   const [receiptConfig, setReceiptConfig] = useState({
     enableFiscalCoupon: true,
@@ -192,25 +198,38 @@ export default function PDVCaixa() {
       : productPrice * qty;
 
     setCart((prev) => {
+      // Para produtos por peso, cada peso diferente é um item separado
+      if (product.requiresWeight) {
+        const newItem = {
+          ...product,
+          quantity: qty,
+          weight: finalWeight,
+          totalPrice: totalPrice,
+        };
+        return [...prev, newItem];
+      }
+
+      // Para produtos normais, verificar se já existe
       const existingItemIndex = prev.findIndex(
         (item) =>
-          item.id === product.id &&
-          (!product.requiresWeight || item.weight === finalWeight)
+          (item.id === product.id || item.codigo === product.codigo) &&
+          !item.requiresWeight
       );
 
-      if (existingItemIndex >= 0 && !product.requiresWeight) {
-        // Para produtos normais, aumentar quantidade
+      if (existingItemIndex >= 0) {
+        // Produto normal já existe, aumentar quantidade
         return prev.map((item, index) =>
           index === existingItemIndex
             ? {
                 ...item,
                 quantity: item.quantity + qty,
-                totalPrice: item.totalPrice + productPrice * qty,
+                totalPrice:
+                  (item.preco_venda || item.price || 0) * (item.quantity + qty),
               }
             : item
         );
       } else {
-        // Para produtos por peso ou novos produtos
+        // Novo produto normal
         const newItem = {
           ...product,
           quantity: qty,
@@ -236,7 +255,9 @@ export default function PDVCaixa() {
   const updateQuantity = (id, quantity, weight) => {
     if (quantity <= 0) {
       const item = cart.find(
-        (item) => item.id === id && (!weight || item.weight === weight)
+        (item) =>
+          (item.id === id || item.codigo === id) &&
+          (item.requiresWeight ? item.weight === weight : true)
       );
       requestAuthorization({
         type: "remove-item",
@@ -252,7 +273,10 @@ export default function PDVCaixa() {
 
     setCart((prev) =>
       prev.map((item) => {
-        if (item.id === id && (!weight || item.weight === weight)) {
+        if (
+          (item.id === id || item.codigo === id) &&
+          (item.requiresWeight ? item.weight === weight : true)
+        ) {
           const itemPrice = item.preco_venda || item.price || 0;
           const newTotalPrice = item.requiresWeight
             ? itemPrice * (item.weight || 1) * quantity
@@ -266,7 +290,9 @@ export default function PDVCaixa() {
 
   const removeFromCart = (id, weight) => {
     const item = cart.find(
-      (item) => item.id === id && (!weight || item.weight === weight)
+      (item) =>
+        (item.id === id || item.codigo === id) &&
+        (item.requiresWeight ? item.weight === weight : true)
     );
     requestAuthorization({
       type: "remove-item",
@@ -281,11 +307,17 @@ export default function PDVCaixa() {
 
   const removeFromCartDirect = (id, weight) => {
     const item = cart.find(
-      (item) => item.id === id && (!weight || item.weight === weight)
+      (item) =>
+        (item.id === id || item.codigo === id) &&
+        (item.requiresWeight ? item.weight === weight : true)
     );
     setCart((prev) =>
       prev.filter(
-        (item) => !(item.id === id && (!weight || item.weight === weight))
+        (item) =>
+          !(
+            (item.id === id || item.codigo === id) &&
+            (item.requiresWeight ? item.weight === weight : true)
+          )
       )
     );
     if (selectedCartIndex >= 0) {
@@ -317,12 +349,21 @@ export default function PDVCaixa() {
 
   const handleSearchKeyPress = (e) => {
     if (e.key === "Enter" && filteredProducts.length === 1) {
-      addToCart(filteredProducts[0]);
+      addToCart(filteredProducts[0], undefined, 1);
       setSearchTerm("");
     }
   };
 
   const requestAuthorization = (request) => {
+    // Se for remoção de item, incluir o peso se disponível
+    if (request.type === "remove-item" && request.itemId) {
+      const item = cart.find(
+        (item) => item.id === request.itemId || item.codigo === request.itemId
+      );
+      if (item) {
+        request.weight = item.weight;
+      }
+    }
     setAuthorizationRequest(request);
   };
 
@@ -347,7 +388,10 @@ export default function PDVCaixa() {
           cart.length
         } itens limpo. Valor total: R$ ${total.toFixed(2)}`;
       } else if (authorizationRequest.type === "remove-item") {
-        const itemName = removeFromCartDirect(authorizationRequest.itemId);
+        const itemName = removeFromCartDirect(
+          authorizationRequest.itemId,
+          authorizationRequest.weight
+        );
         actionName = "Remover Item";
         details = `Item "${itemName}" removido do carrinho`;
         setAuthorizationRequest(null);
@@ -474,7 +518,7 @@ export default function PDVCaixa() {
       return;
     }
 
-    if (!receiptType && hasPermission(user, "receipts", "choose")) {
+    if (!receiptType && hasPermission(user, "receipts.choose")) {
       const userPermissions = receiptConfig.rolePermissions[null];
       if (userPermissions?.canChoose) {
         setShowReceiptSelection(true);
@@ -556,21 +600,21 @@ export default function PDVCaixa() {
   const removeSelectedCartItem = () => {
     if (selectedCartIndex >= 0 && selectedCartIndex < cart.length) {
       const item = cart[selectedCartIndex];
-      removeFromCart(item.id, item.weight);
+      removeFromCart(item.id || item.codigo, item.weight);
     }
   };
 
   const increaseSelectedCartItem = () => {
     if (selectedCartIndex >= 0 && selectedCartIndex < cart.length) {
       const item = cart[selectedCartIndex];
-      updateQuantity(item.id, item.quantity + 1, item.weight);
+      updateQuantity(item.id || item.codigo, item.quantity + 1, item.weight);
     }
   };
 
   const decreaseSelectedCartItem = () => {
     if (selectedCartIndex >= 0 && selectedCartIndex < cart.length) {
       const item = cart[selectedCartIndex];
-      updateQuantity(item.id, item.quantity - 1, item.weight);
+      updateQuantity(item.id || item.codigo, item.quantity - 1, item.weight);
     }
   };
 
@@ -585,13 +629,13 @@ export default function PDVCaixa() {
   };
 
   const navigateToScreen = (screen) => {
-    if (screen === "cadastro" && !hasPermission(user, "products", "manage")) {
+    if (screen === "cadastro" && !hasPermission(user, "products.manage")) {
       alert(
         "Acesso negado. Você não tem permissão para acessar o cadastro de produtos."
       );
       return;
     }
-    if (screen === "etiquetas" && !hasPermission(user, "labels", "config")) {
+    if (screen === "etiquetas" && !hasPermission(user, "labels.config")) {
       alert("Acesso negado. Você não tem permissão para acessar as etiquetas.");
       return;
     }
@@ -777,7 +821,6 @@ export default function PDVCaixa() {
         <PdvNav
           shortcuts={shortcuts}
           hasPermission={hasPermission}
-          cashSession={cashSession}
           setShowLabelConfig={setShowLabelConfig}
           setShowCashManagement={setShowCashManagement}
           setCashAction={setCashAction}
@@ -878,9 +921,15 @@ export default function PDVCaixa() {
                           </p>
                         ) : (
                           <div className="space-y-2">
-                            {filteredProducts.map((product) => (
+                            {filteredProducts.map((product, index) => (
                               <Card
-                                key={product.id}
+                                key={`${
+                                  product.id || product.codigo || index
+                                }-${
+                                  product.codigo_barras ||
+                                  product.barcode ||
+                                  "no-barcode"
+                                }`}
                                 className="cursor-pointer hover:shadow-md transition-shadow p-3"
                               >
                                 <div className="flex justify-between items-center">
@@ -1024,7 +1073,9 @@ export default function PDVCaixa() {
                         <div className="space-y-2 pr-2">
                           {cart.map((item, index) => (
                             <div
-                              key={`${item.id}-${item.weight || "unit"}`}
+                              key={`${item.id || item.codigo || index}-${
+                                item.weight || "unit"
+                              }`}
                               className={`flex items-center gap-2 p-2 border rounded cursor-pointer transition-colors ${
                                 selectedCartIndex === index
                                   ? "bg-blue-200 border-blue-400"
@@ -1054,6 +1105,11 @@ export default function PDVCaixa() {
                                 <div className="text-xs text-gray-700">
                                   {item.requiresWeight ? (
                                     <span>
+                                      {item.quantity > 1 && (
+                                        <span className="font-semibold text-blue-600">
+                                          {item.quantity}×{" "}
+                                        </span>
+                                      )}
                                       {item.weight?.toFixed(3)} kg × R${" "}
                                       {(
                                         item.preco_venda ||
@@ -1064,6 +1120,11 @@ export default function PDVCaixa() {
                                     </span>
                                   ) : (
                                     <span>
+                                      {item.quantity > 1 && (
+                                        <span className="font-semibold text-blue-600">
+                                          {item.quantity}×{" "}
+                                        </span>
+                                      )}
                                       R${" "}
                                       {(
                                         item.preco_venda ||
@@ -1085,7 +1146,7 @@ export default function PDVCaixa() {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     updateQuantity(
-                                      item.id,
+                                      item.id || item.codigo,
                                       item.quantity - 1,
                                       item.weight
                                     );
@@ -1103,7 +1164,7 @@ export default function PDVCaixa() {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     updateQuantity(
-                                      item.id,
+                                      item.id || item.codigo,
                                       item.quantity + 1,
                                       item.weight
                                     );
@@ -1118,7 +1179,10 @@ export default function PDVCaixa() {
                                 variant="destructive"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  removeFromCart(item.id, item.weight);
+                                  removeFromCart(
+                                    item.id || item.codigo,
+                                    item.weight
+                                  );
                                 }}
                                 title="Requer cartão de autorização"
                                 className="h-6 w-6 p-0 bg-white hover:bg-white text-black"
@@ -1432,21 +1496,19 @@ export default function PDVCaixa() {
         onOpenChange={setShowCashManagement}
         action={cashAction}
         currentSession={cashSession}
-        onConfirm={(amount) => {
-          if (cashAction === "open") {
-            setCashSession({
-              id: Date.now().toString(),
-              openedBy: user?.name,
-              openedAt: new Date().toISOString(),
-              initialAmount: amount,
-              totalSales: 0,
-              totalTransactions: 0,
-              status: "open",
-            });
-          } else {
-            setCashSession(null);
+        onConfirm={async (amount) => {
+          try {
+            if (cashAction === "open") {
+              await abrirCaixa(amount, user);
+            } else {
+              await fecharCaixa(amount, user);
+            }
+            setShowCashManagement(false);
+            // A query será automaticamente refeita pelo hook useCaixa
+          } catch (error) {
+            console.error("Erro ao gerenciar caixa:", error);
+            // O erro será tratado pelo hook useCaixa
           }
-          setShowCashManagement(false);
         }}
         user={user}
         userName={user?.name}

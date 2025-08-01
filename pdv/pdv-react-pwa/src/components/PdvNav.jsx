@@ -11,14 +11,17 @@ import {
   Settings,
   Maximize2,
   Minimize2,
+  Circle,
 } from "lucide-react";
 import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
 import { localAuthService } from "../services/localAuthService";
+import { useConfiguracoes } from "../hooks/useConfiguracoes";
+import { useCaixa } from "../hooks/useCaixa";
+import { useCaixaStatus } from "../hooks/useAuth";
 
 export default function PdvNav({
   shortcuts = [],
   hasPermission = (user, module) => false,
-  cashSession,
   setShowCashManagement = () => {},
   setCashAction = () => {},
   navigate,
@@ -26,6 +29,9 @@ export default function PdvNav({
   user,
 }) {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
+  const { configuracoes } = useConfiguracoes();
+  const { cashSession, loading: caixaLoading } = useCaixa();
+  const { data: caixaStatus } = useCaixaStatus();
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -84,10 +90,43 @@ export default function PdvNav({
         </button>
       )}
       <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white">Caixa</h1>
-          <p className="text-sm text-white">Ponto de Venda</p>
+        <div className="flex items-center gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-white">Caixa</h1>
+            <p className="text-sm text-white">Ponto de Venda</p>
+          </div>
+
+          {/* Indicador de status do caixa */}
+          <div className="flex items-center gap-2 bg-gray-800 rounded-lg px-3 py-2">
+            {caixaLoading ? (
+              <div className="text-white text-sm">Carregando...</div>
+            ) : (
+              <>
+                <Circle
+                  className={`w-3 h-3 ${
+                    cashSession || caixaStatus
+                      ? "text-green-400 fill-green-400"
+                      : "text-red-400 fill-red-400"
+                  }`}
+                />
+                <div className="text-white">
+                  <div className="text-sm font-semibold">
+                    {cashSession || caixaStatus
+                      ? "Caixa Aberto"
+                      : "Caixa Fechado"}
+                  </div>
+                  <div className="text-xs text-gray-300">
+                    Nº{" "}
+                    {(cashSession || caixaStatus)?.caixa_numero ||
+                      configuracoes.numero_caixa ||
+                      "N/A"}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
+
         <div className="flex gap-2">
           <KeyboardShortcutsHelp shortcuts={shortcuts} />
 
@@ -114,11 +153,11 @@ export default function PdvNav({
 
           <Button
             onClick={() => {
-              setCashAction(cashSession ? "close" : "open");
+              setCashAction(cashSession || caixaStatus ? "close" : "open");
               setShowCashManagement(true);
             }}
             title={
-              !hasPermission(user, "pdv.authorize", "write")
+              !hasPermission(user, "pdv.authorize")
                 ? "Você não tem permissão para abrir ou fechar caixa"
                 : ""
             }
@@ -135,7 +174,7 @@ export default function PdvNav({
             onClick={() => navigate("/produtos")}
             variant="outline"
             size="sm"
-            disabled={!hasPermission(user, "pdv.products", "read")}
+            disabled={!hasPermission(user, "pdv.products")}
           >
             <Package className="w-4 h-4 mr-2" />
             <span className="hidden sm:inline">Produtos</span>
@@ -159,7 +198,8 @@ export default function PdvNav({
           </Button>
           {(user?.perfil === "admin" ||
             user?.permissions?.includes("*") ||
-            user?.permissions?.includes("admin")) && (
+            user?.permissions?.includes("admin") ||
+            user?.permissions?.includes("manage.users")) && (
             <Button
               onClick={() => navigate("/configuracoes")}
               variant="outline"

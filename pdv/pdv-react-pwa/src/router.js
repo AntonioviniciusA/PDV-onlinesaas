@@ -9,7 +9,7 @@ import Etiquetas from "./pages/Etiquetas";
 import Historico from "./pages/Historico";
 import PrivateRoute from "./utils/privateRoute";
 import PdvProtectedRoute from "./utils/pdvProtectedRoute";
-import LoginPage from "./components/login-dialog";
+import Login from "./pages/Login";
 import Configuracoes from "./pages/Configuracoes";
 import { Toaster } from "./components/ui/toaster";
 export default function Router() {
@@ -17,7 +17,7 @@ export default function Router() {
     <>
       <Routes>
         <Route path="/" element={<AuthDialog />} />
-        <Route path="/llogin" element={<LoginPage />} />
+        <Route path="/llogin" element={<Login />} />
         <Route
           path="/pdv"
           element={

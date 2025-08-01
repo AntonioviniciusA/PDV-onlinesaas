@@ -4,6 +4,11 @@ const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 require("dotenv").config();
 
+// Importar função de limpeza de tokens
+const {
+  limparTokensExpirados,
+} = require("./controllers/cliente.controller.js");
+
 // Importar configurações
 const {
   pool,
@@ -81,6 +86,24 @@ app.use((req, res, next) => {
 //rotas
 app.use("/saas", require("./routes/saas.router.js"));
 
+// Função para limpeza automática de tokens expirados
+const iniciarLimpezaAutomatica = () => {
+  // Limpa tokens expirados a cada 30 minutos
+  const intervaloLimpeza = 30 * 60 * 1000; // 30 minutos
+
+  setInterval(async () => {
+    try {
+      await limparTokensExpirados();
+    } catch (error) {
+      console.error("❌ Erro na limpeza automática de tokens:", error);
+    }
+  }, intervaloLimpeza);
+
+  console.log(
+    "🧹 Limpeza automática de tokens configurada (a cada 30 minutos)"
+  );
+};
+
 // Função para iniciar o servidor
 const startServer = async () => {
   // 1. Criar banco de dados
@@ -114,7 +137,21 @@ const startServer = async () => {
     process.exit(1);
   }
 
-  // 4. Iniciar servidor
+  // 4. Limpeza inicial de tokens expirados
+  try {
+    console.log("🧹 Executando limpeza inicial de tokens expirados...");
+    const tokensRemovidos = await limparTokensExpirados();
+    console.log(
+      `✅ ${tokensRemovidos} tokens expirados removidos na inicialização`
+    );
+  } catch (error) {
+    console.error("❌ Erro na limpeza inicial de tokens:", error);
+  }
+
+  // 5. Iniciar limpeza automática
+  iniciarLimpezaAutomatica();
+
+  // 6. Iniciar servidor
   try {
     app.listen(PORT, () => {
       console.log(`🚀 Servidor rodando na porta ${PORT}`);

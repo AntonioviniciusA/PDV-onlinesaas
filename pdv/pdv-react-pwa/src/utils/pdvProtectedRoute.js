@@ -49,6 +49,8 @@ export default function PdvProtectedRoute({
         // Admin sempre tem acesso
         if (userPerms.includes("*") || (user && user.perfil === "admin")) {
           setHasPermission(true);
+        } else if (userPerms.includes("products.view")) {
+          setHasPermission(true);
         } else {
           // Verifica se tem pelo menos uma permissão exigida
           const allowed = requiredPermissions.some((perm) =>

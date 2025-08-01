@@ -190,14 +190,34 @@ const loginCliente = async (req, res) => {
       JWT_SECRET,
       { expiresIn: "12h" }
     );
+
+    // Gera código de acesso de 6 dígitos
+    const codigoAcesso = Math.floor(100000 + Math.random() * 900000);
+    const dataExpiracao = new Date(Date.now() + 30 * 60000); // 30 minutos
+
+    // Salva o código de acesso no banco
+    await pool.query(
+      "INSERT INTO codigos_acesso (id_cliente, codigo, tipo_usuario, data_expiracao, ip_geracao, user_agent) VALUES (?, ?, ?, ?, ?, ?)",
+      [
+        cliente.id,
+        codigoAcesso,
+        "cliente",
+        dataExpiracao,
+        req.ip || req.connection.remoteAddress,
+        req.headers["user-agent"] || null,
+      ]
+    );
+
     // Atualiza último login
     await pool.query("UPDATE cliente SET ultimo_login = NOW() WHERE id = ?", [
       cliente.id,
     ]);
-    // Retorna dados do cliente (sem senha)
+
+    // Retorna dados do cliente (sem senha) e o código de acesso
     return res.json({
       success: true,
       token,
+      codigo_acesso: codigoAcesso,
       user: {
         id: cliente.id,
         razao_social: cliente.razao_social,
@@ -563,6 +583,367 @@ const verificarEmail = async (req, res) => {
   }
 };
 
+// Login específico para PDV com geração de código de acesso
+const loginPDV = async (req, res) => {
+  try {
+    console.log("🔐 Iniciando login PDV...");
+    const { email, senha } = req.body;
+    console.log("📧 Email recebido:", email);
+
+    if (!email || !senha) {
+      console.log("❌ Email ou senha não fornecidos");
+      return res.status(400).json({
+        success: false,
+        message: "E-mail e senha são obrigatórios.",
+      });
+    }
+
+    // Busca cliente pelo email
+    console.log("🔍 Buscando cliente no banco...");
+    const [clienteRows] = await pool.query(
+      "SELECT * FROM cliente WHERE email = ?",
+      [email]
+    );
+    console.log("📊 Clientes encontrados:", clienteRows.length);
+
+    if (clienteRows.length === 0) {
+      console.log("❌ Cliente não encontrado");
+      return res.status(401).json({
+        success: false,
+        message: "E-mail ou senha inválidos.",
+      });
+    }
+
+    const cliente = clienteRows[0];
+    console.log("✅ Cliente encontrado:", {
+      id: cliente.id,
+      email: cliente.email,
+    });
+
+    // Compara senha
+    const senhaCorreta = await bcrypt.compare(senha, cliente.senha);
+    console.log("🔐 Verificação de senha:", {
+      senhaFornecida: senha ? "sim" : "não",
+      senhaHash: cliente.senha ? "sim" : "não",
+      senhaCorreta,
+    });
+
+    if (!senhaCorreta) {
+      return res.status(401).json({
+        success: false,
+        message: "E-mail ou senha inválidos.",
+      });
+    }
+
+    // Verifica se o e-mail está verificado
+    console.log("🔍 Verificando status do email:", cliente.email_verificado);
+    if (cliente.email_verificado === 0) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "E-mail não verificado. Verifique seu e-mail antes de fazer login.",
+      });
+    }
+
+    // Verifica se dupla autenticação está ativa
+    if (cliente.dupla_autenticacao) {
+      // Gera código e envia para o e-mail
+      const codigo = Math.floor(100000 + Math.random() * 900000);
+      const expiracao = new Date(Date.now() + 5 * 60000); // 5 minutos
+      await pool.query(
+        "INSERT INTO codigos_verificacao (id_cliente, codigo, expiracao) VALUES (?, ?, ?)",
+        [cliente.id, codigo, expiracao]
+      );
+      try {
+        await enviarCodigoEmail(cliente.email, codigo);
+        return res.status(401).json({
+          success: false,
+          message: "Código de dupla autenticação enviado.",
+          etapa: "dupla_autenticacao",
+          id_cliente: cliente.id,
+          email: cliente.email,
+        });
+      } catch (emailError) {
+        console.error("Erro ao enviar email:", emailError);
+        if (process.env.NODE_ENV === "development") {
+          console.log("🔧 Modo desenvolvimento: Pulando dupla autenticação");
+        } else {
+          return res.status(500).json({
+            success: false,
+            message: "Erro ao enviar código de autenticação. Tente novamente.",
+          });
+        }
+      }
+    }
+
+    // Gera código de acesso de 6 dígitos para PDV
+    const codigoAcesso = Math.floor(100000 + Math.random() * 900000);
+    const dataExpiracao = new Date(Date.now() + 30 * 60000); // 30 minutos
+
+    // Salva o código de acesso no banco
+    await pool.query(
+      "INSERT INTO codigos_acesso (id_cliente, codigo, tipo_usuario, data_expiracao, ip_geracao, user_agent) VALUES (?, ?, ?, ?, ?, ?)",
+      [
+        cliente.id,
+        codigoAcesso,
+        "cliente",
+        dataExpiracao,
+        req.ip || req.connection.remoteAddress,
+        req.headers["user-agent"] || null,
+      ]
+    );
+
+    // Gera token JWT
+    const token = jwt.sign(
+      {
+        id: cliente.id,
+        email: cliente.email,
+        nome: cliente.nome_representante,
+        tipo: "cliente",
+        acesso: "pdv",
+      },
+      JWT_SECRET,
+      { expiresIn: "12h" }
+    );
+
+    // Atualiza último login
+    await pool.query("UPDATE cliente SET ultimo_login = NOW() WHERE id = ?", [
+      cliente.id,
+    ]);
+
+    // Retorna dados do cliente e código de acesso para PDV
+    return res.json({
+      success: true,
+      message: "Login PDV realizado com sucesso!",
+      token,
+      codigo_acesso: codigoAcesso,
+      user: {
+        id: cliente.id,
+        razao_social: cliente.razao_social,
+        cnpj: cliente.cnpj,
+        nome_representante: cliente.nome_representante,
+        cpf: cliente.cpf,
+        email: cliente.email,
+        telefone: cliente.telefone,
+        endereco: cliente.endereco,
+        cidade: cliente.cidade,
+        estado: cliente.estado,
+        cep: cliente.cep,
+        pais: cliente.pais,
+        ativo: cliente.ativo,
+      },
+    });
+  } catch (err) {
+    console.error("Erro no login PDV:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Erro interno ao fazer login PDV.",
+    });
+  }
+};
+
+// Função para verificar código de acesso
+const verificarCodigoAcesso = async (req, res) => {
+  try {
+    const { codigo, id_cliente } = req.body;
+
+    if (!codigo || !id_cliente) {
+      return res.status(400).json({
+        success: false,
+        message: "Código e ID do cliente são obrigatórios.",
+      });
+    }
+
+    // Busca o código de acesso no banco
+    const [codigos] = await pool.query(
+      "SELECT * FROM codigos_acesso WHERE id_cliente = ? AND codigo = ? AND data_expiracao > NOW() AND usado = false",
+      [id_cliente, codigo]
+    );
+
+    if (codigos.length === 0) {
+      return res.status(401).json({
+        success: false,
+        message: "Código de acesso inválido, expirado ou já utilizado.",
+      });
+    }
+
+    const codigoAcesso = codigos[0];
+
+    // Marca o código como usado
+    await pool.query(
+      "UPDATE codigos_acesso SET usado = true, data_uso = NOW() WHERE id = ?",
+      [codigoAcesso.id]
+    );
+
+    // Busca dados do cliente
+    const [clientes] = await pool.query("SELECT * FROM cliente WHERE id = ?", [
+      id_cliente,
+    ]);
+
+    if (clientes.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Cliente não encontrado.",
+      });
+    }
+
+    const cliente = clientes[0];
+
+    // Gera novo token JWT
+    const token = jwt.sign(
+      {
+        id: cliente.id,
+        email: cliente.email,
+        nome: cliente.nome_representante,
+        tipo: "cliente",
+      },
+      JWT_SECRET,
+      { expiresIn: "12h" }
+    );
+
+    return res.json({
+      success: true,
+      message: "Código de acesso verificado com sucesso!",
+      token,
+      user: {
+        id: cliente.id,
+        razao_social: cliente.razao_social,
+        cnpj: cliente.cnpj,
+        nome_representante: cliente.nome_representante,
+        cpf: cliente.cpf,
+        email: cliente.email,
+        telefone: cliente.telefone,
+        endereco: cliente.endereco,
+        cidade: cliente.cidade,
+        estado: cliente.estado,
+        cep: cliente.cep,
+        pais: cliente.pais,
+        ativo: cliente.ativo,
+      },
+    });
+  } catch (err) {
+    console.error("Erro ao verificar código de acesso:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Erro interno ao verificar código de acesso.",
+    });
+  }
+};
+
+// Função para limpar tokens expirados
+const limparTokensExpirados = async () => {
+  try {
+    const [resultado] = await pool.query(
+      "DELETE FROM codigos_acesso WHERE data_expiracao < NOW()"
+    );
+
+    if (resultado.affectedRows > 0) {
+      console.log(`🧹 ${resultado.affectedRows} tokens expirados removidos`);
+    }
+
+    return resultado.affectedRows;
+  } catch (err) {
+    console.error("Erro ao limpar tokens expirados:", err);
+    return 0;
+  }
+};
+
+// Função para verificar token de acesso (usado por outros backends)
+const verificarTokenAcesso = async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: "Token é obrigatório.",
+      });
+    }
+
+    // Limpa tokens expirados antes de verificar
+    await limparTokensExpirados();
+
+    // Busca o código de acesso no banco pelo token
+    const [codigos] = await pool.query(
+      "SELECT ca.*, c.* FROM codigos_acesso ca JOIN cliente c ON ca.id_cliente = c.id WHERE ca.codigo = ? AND ca.data_expiracao > NOW() AND ca.usado = false",
+      [token]
+    );
+
+    if (codigos.length === 0) {
+      return res.status(401).json({
+        success: false,
+        message: "Token de acesso inválido, expirado ou já utilizado.",
+      });
+    }
+
+    const codigoAcesso = codigos[0];
+
+    // Marca o código como usado
+    await pool.query(
+      "UPDATE codigos_acesso SET usado = true, data_uso = NOW() WHERE id = ?",
+      [codigoAcesso.id]
+    );
+
+    // Gera novo token JWT
+    const newToken = jwt.sign(
+      {
+        id: codigoAcesso.id,
+        email: codigoAcesso.email,
+        nome: codigoAcesso.nome_representante,
+        tipo: "cliente",
+      },
+      JWT_SECRET,
+      { expiresIn: "12h" }
+    );
+
+    return res.json({
+      success: true,
+      message: "Token de acesso verificado com sucesso!",
+      token: newToken,
+      user: {
+        id: codigoAcesso.id,
+        razao_social: codigoAcesso.razao_social,
+        cnpj: codigoAcesso.cnpj,
+        nome_representante: codigoAcesso.nome_representante,
+        cpf: codigoAcesso.cpf,
+        email: codigoAcesso.email,
+        telefone: codigoAcesso.telefone,
+        endereco: codigoAcesso.endereco,
+        cidade: codigoAcesso.cidade,
+        estado: codigoAcesso.estado,
+        cep: codigoAcesso.cep,
+        pais: codigoAcesso.pais,
+        ativo: codigoAcesso.ativo,
+      },
+    });
+  } catch (err) {
+    console.error("Erro ao verificar token de acesso:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Erro interno ao verificar token de acesso.",
+    });
+  }
+};
+
+// Rota para limpeza manual de tokens expirados
+const limparTokensExpiradosRoute = async (req, res) => {
+  try {
+    const tokensRemovidos = await limparTokensExpirados();
+
+    return res.json({
+      success: true,
+      message: `${tokensRemovidos} tokens expirados foram removidos`,
+      tokensRemovidos,
+    });
+  } catch (err) {
+    console.error("Erro na limpeza manual de tokens:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Erro interno ao limpar tokens expirados.",
+    });
+  }
+};
+
 const me = async (req, res) => {
   const authHeader = req.headers.authorization;
   console.log("authHeader", authHeader);
@@ -595,10 +976,15 @@ const me = async (req, res) => {
 module.exports = {
   registerCliente,
   loginCliente,
+  loginPDV,
   getProfile,
   updateProfile,
   enviarCodigoVerificacao,
   verificarCodigo,
   verificarEmail,
+  verificarCodigoAcesso,
+  verificarTokenAcesso,
+  limparTokensExpiradosRoute,
+  limparTokensExpirados,
   me,
 };

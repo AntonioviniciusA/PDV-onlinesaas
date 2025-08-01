@@ -16,34 +16,45 @@ export const caixaService = {
       throw error;
     }
   },
-  abrirCaixa: async (amount, usuario, caixa_numero) => {
+  abrirCaixa: async (amount, usuario) => {
     try {
       const response = await baseUrl.post(
         "/caixa/abrir",
         {
           amount,
           usuario,
-          caixa_numero,
         },
         {
           withCredentials: true,
         }
       );
-      console.log("response", response);
+      // console.log("response", response);
       return response.data;
     } catch (error) {
-      console.error("Erro ao abrir caixa:", error);
+      console.error(error);
       throw error;
     }
   },
-  fecharCaixa: async (amount, usuario, caixa_numero) => {
+  fecharCaixa: async (amount, usuario) => {
     try {
+      // Primeiro buscar o caixa aberto
+      const caixaResponse = await baseUrl.get("/caixa/verifica-aberto", {
+        withCredentials: true,
+      });
+
+      if (!caixaResponse.data.sucesso || !caixaResponse.data.caixa) {
+        throw new Error("Nenhum caixa aberto encontrado");
+      }
+
+      const caixa = caixaResponse.data.caixa;
+
       const response = await baseUrl.post(
         "/caixa/fechar",
         {
           amount,
           usuario,
-          caixa_numero,
+          id_caixa: caixa.id,
+          id_loja: usuario.id_loja,
         },
         {
           withCredentials: true,
@@ -59,9 +70,7 @@ export const caixaService = {
     try {
       const response = await baseUrl.post(
         "/caixa/check-autorizacao",
-        {
-          usuario: usuario,
-        },
+        { usuario },
         {
           withCredentials: true,
         }
@@ -72,26 +81,47 @@ export const caixaService = {
       throw error;
     }
   },
-  getHistoricoVendas: async (
-    n_venda,
-    data,
-    forma_pagamento,
-    caixa_operacao
-  ) => {
+  getCaixasAbertos: async () => {
     try {
-      const response = await baseUrl.get("/caixa/historico", {
-        params: {
-          n_venda,
-          data,
-          forma_pagamento,
-          caixa_operacao,
-        },
+      const response = await baseUrl.get("/caixa/abertos", {
         withCredentials: true,
       });
-
       return response.data;
     } catch (error) {
-      console.error("Erro ao obter histórico de vendas:", error);
+      console.error("Erro ao buscar caixas abertos:", error);
+      throw error;
+    }
+  },
+  getCaixasFechados: async () => {
+    try {
+      const response = await baseUrl.get("/caixa/fechados", {
+        withCredentials: true,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao buscar caixas fechados:", error);
+      throw error;
+    }
+  },
+  verificaCaixaAberto: async () => {
+    try {
+      const response = await baseUrl.get("/caixa/verifica-aberto", {
+        withCredentials: true,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao verificar caixa aberto:", error);
+      throw error;
+    }
+  },
+  finalizarVenda: async (cupomData) => {
+    try {
+      const response = await baseUrl.post("/caixa/finalizar-venda", cupomData, {
+        withCredentials: true,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao finalizar venda:", error);
       throw error;
     }
   },

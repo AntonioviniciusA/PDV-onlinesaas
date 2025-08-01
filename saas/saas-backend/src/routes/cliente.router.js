@@ -3,11 +3,15 @@ const router = express.Router();
 const {
   registerCliente,
   loginCliente,
+  loginPDV,
   getProfile,
   updateProfile,
   enviarCodigoVerificacao,
   verificarCodigo,
   verificarEmail,
+  verificarCodigoAcesso,
+  verificarTokenAcesso,
+  limparTokensExpiradosRoute,
   me,
 } = require("../controllers/cliente.controller.js");
 const authMiddleware = require("../middlewares/auth.middleware.js");
@@ -74,10 +78,14 @@ const validarLoginCliente = [
 
 router.post("/register", validarRegistroCliente, registerCliente);
 router.post("/login", validarLoginCliente, loginCliente);
+router.post("/login-pdv", validarLoginCliente, loginPDV);
 router.get("/profile", authMiddleware, getProfile);
 router.put("/profile", authMiddleware, updateProfile);
 router.post("/enviar-codigo", enviarCodigoVerificacao);
 router.post("/verificar-email", verificarEmail);
 router.post("/verificar-codigo", verificarCodigo);
+router.post("/verificar-codigo-acesso", verificarCodigoAcesso);
+router.post("/verificar-token-acesso", verificarTokenAcesso);
+router.post("/limpar-tokens-expirados", limparTokensExpiradosRoute);
 router.get("/me", authMiddleware, me);
 module.exports = router;

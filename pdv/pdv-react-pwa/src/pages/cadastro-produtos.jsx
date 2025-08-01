@@ -32,6 +32,7 @@ import {
   CheckCircle,
   Upload,
   Calculator,
+  AlertTriangle,
 } from "lucide-react";
 import { CSVImportDialog } from "../components/csv-import-dialog.jsx";
 import {
@@ -40,8 +41,7 @@ import {
   useUpdateProduto,
   useDeleteProduto,
 } from "../hooks/useProducts.js";
-import { produtosServices } from "../services/produtosServices.js";
-import { localAuthService } from "../services/localAuthService.js";
+
 import { ncmService } from "../services/ncmService.js";
 import {
   Tabs,
@@ -49,6 +49,8 @@ import {
   TabsTrigger,
   TabsContent,
 } from "../components/ui/tabs.jsx";
+import { useUser } from "../hooks/useAuth.js";
+import { hasPermission } from "../utils/permissions.js";
 
 // Função utilitária para formatar preços
 const formatPrice = (price) => {
@@ -57,9 +59,19 @@ const formatPrice = (price) => {
 };
 
 export default function CadastroProdutos() {
+  const { data: user } = useUser();
   const [searchTerm, setSearchTerm] = useState("");
   const [editingProduct, setEditingProduct] = useState(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
+
+  // Verificar permissões do usuário
+  const canEditProducts =
+    user &&
+    (hasPermission(user, "products.manage") || hasPermission(user, "*"));
+
+  const canViewAllData =
+    user &&
+    (hasPermission(user, "products.manage") || hasPermission(user, "*"));
   // Atualizar o formData inicial para garantir campos obrigatórios do banco
   const [formData, setFormData] = useState({
     codigo: "",
@@ -522,14 +534,21 @@ export default function CadastroProdutos() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button onClick={() => setShowImportDialog(true)} variant="outline">
-              <Upload className="w-4 h-4 mr-2" />
-              Importar CSV
-            </Button>
-            <Button onClick={handleAddNew}>
-              <Plus className="w-4 h-4 mr-2" />
-              Novo Produto
-            </Button>
+            {canEditProducts && (
+              <Button
+                onClick={() => setShowImportDialog(true)}
+                variant="outline"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Importar CSV
+              </Button>
+            )}
+            {canEditProducts && (
+              <Button onClick={handleAddNew}>
+                <Plus className="w-4 h-4 mr-2" />
+                Novo Produto
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -548,6 +567,21 @@ export default function CadastroProdutos() {
         </div>
       )}
 
+      {/* Info Message for Limited Permissions */}
+      {!canEditProducts && (
+        <div className="flex-shrink-0 p-4">
+          <div className="max-w-7xl mx-auto">
+            <Alert className="border-blue-200 bg-blue-50">
+              <AlertTriangle className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-800">
+                Você está visualizando os produtos em modo de consulta. Para
+                editar produtos, entre em contato com um administrador.
+              </AlertDescription>
+            </Alert>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <div className="flex-1 p-4 overflow-hidden">
         <div className="max-w-7xl mx-auto h-full">
@@ -557,6 +591,11 @@ export default function CadastroProdutos() {
                 <CardTitle className="flex items-center gap-2">
                   <Package className="w-5 h-5" />
                   Produtos Cadastrados ({filteredProducts.length})
+                  {!canEditProducts && (
+                    <Badge variant="outline" className="text-xs">
+                      Modo Visualização
+                    </Badge>
+                  )}
                 </CardTitle>
                 <div className="flex items-center gap-2">
                   <Search className="w-4 h-4 text-gray-400" />
@@ -586,7 +625,7 @@ export default function CadastroProdutos() {
                           ? "Nenhum produto encontrado"
                           : "Nenhum produto cadastrado"}
                       </p>
-                      {!searchTerm && (
+                      {!searchTerm && canEditProducts && (
                         <Button onClick={handleAddNew} className="mt-4">
                           <Plus className="w-4 h-4 mr-2" />
                           Cadastrar Primeiro Produto
@@ -620,7 +659,13 @@ export default function CadastroProdutos() {
                                   </Badge>
                                 )}
                               </div>
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                              <div
+                                className={`grid gap-4 text-sm ${
+                                  canViewAllData
+                                    ? "grid-cols-2 md:grid-cols-4 lg:grid-cols-8"
+                                    : "grid-cols-2 md:grid-cols-4"
+                                }`}
+                              >
                                 <div>
                                   <p className="text-gray-500">Preço</p>
                                   <p className="font-semibold text-green-600">
@@ -655,24 +700,60 @@ export default function CadastroProdutos() {
                                       : "Não controlado"}
                                   </p>
                                 </div>
+                                {canViewAllData && (
+                                  <>
+                                    <div>
+                                      <p className="text-gray-500">
+                                        Preço Custo
+                                      </p>
+                                      <p className="font-mono text-xs">
+                                        R$ {formatPrice(product.preco_custo)}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-gray-500">Margem</p>
+                                      <p className="font-mono text-xs">
+                                        {product.margem_lucro
+                                          ? `${product.margem_lucro}%`
+                                          : "N/A"}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-gray-500">NCM</p>
+                                      <p className="font-mono text-xs">
+                                        {product.ncm || "N/A"}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-gray-500">
+                                        Estoque Mín
+                                      </p>
+                                      <p className="font-mono text-xs">
+                                        {product.estoque_minimo || "N/A"}
+                                      </p>
+                                    </div>
+                                  </>
+                                )}
                               </div>
                             </div>
-                            <div className="flex gap-2 ml-4">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleEdit(product)}
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleDelete(product)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
+                            {canEditProducts && (
+                              <div className="flex gap-2 ml-4">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleEdit(product)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleDelete(product)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         </Card>
                       );
@@ -691,7 +772,12 @@ export default function CadastroProdutos() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Package className="w-5 h-5" />
-              {editingProduct ? "Editar Produto" : "Novo Produto"}
+              {editingProduct ? "Visualizar Produto" : "Novo Produto"}
+              {!canEditProducts && editingProduct && (
+                <Badge variant="outline" className="text-xs">
+                  Modo Visualização
+                </Badge>
+              )}
             </DialogTitle>
           </DialogHeader>
 
@@ -716,6 +802,7 @@ export default function CadastroProdutos() {
                         }
                         placeholder="Código interno"
                         className={formErrors.codigo ? "border-red-500" : ""}
+                        readOnly={!canEditProducts}
                       />
                       {formErrors.codigo && (
                         <p className="text-red-500 text-xs mt-1">
@@ -738,6 +825,7 @@ export default function CadastroProdutos() {
                         className={
                           formErrors.codigo_barras ? "border-red-500" : ""
                         }
+                        readOnly={!canEditProducts}
                       />
                       {formErrors.codigo_barras && (
                         <p className="text-red-500 text-xs mt-1">
@@ -760,6 +848,7 @@ export default function CadastroProdutos() {
                         }
                         placeholder="Descrição detalhada do produto"
                         className={formErrors.descricao ? "border-red-500" : ""}
+                        readOnly={!canEditProducts}
                       />
                       {formErrors.descricao && (
                         <p className="text-red-500 text-xs mt-1">
@@ -1303,10 +1392,12 @@ export default function CadastroProdutos() {
               <X className="w-4 h-4 mr-2" />
               Cancelar
             </Button>
-            <Button onClick={handleSave}>
-              <Save className="w-4 h-4 mr-2" />
-              {editingProduct ? "Atualizar" : "Cadastrar"}
-            </Button>
+            {canEditProducts && (
+              <Button onClick={handleSave}>
+                <Save className="w-4 h-4 mr-2" />
+                {editingProduct ? "Atualizar" : "Cadastrar"}
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>

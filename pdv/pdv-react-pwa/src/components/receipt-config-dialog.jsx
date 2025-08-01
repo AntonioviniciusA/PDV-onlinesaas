@@ -139,7 +139,7 @@ export function ReceiptConfigDialog({ open, onOpenChange, config, onSave }) {
                           updateRolePermission(
                             role.id,
                             "canChoose",
-                            e.target.value === "true",
+                            e.target.value === "true"
                           )
                         }
                         className="w-full p-2 border rounded-md mt-1"
@@ -160,7 +160,7 @@ export function ReceiptConfigDialog({ open, onOpenChange, config, onSave }) {
                           updateRolePermission(
                             role.id,
                             "defaultType",
-                            e.target.value,
+                            e.target.value
                           )
                         }
                         className="w-full p-2 border rounded-md mt-1"

@@ -41,6 +41,23 @@ export const AuthService = {
     }
   },
 
+  // Login PDV com código de acesso
+  loginPDV: async (loginData, remember = false) => {
+    try {
+      const response = await apiNoAuth.post("/cliente/login-pdv", loginData);
+      const { token, user, codigo_acesso } = response.data;
+      AuthService.setAuthData(token, user, remember);
+      return { token, user, codigo_acesso };
+    } catch (error) {
+      // Se for etapa de verificação de e-mail ou 2FA, retorna o erro para o frontend tratar
+      if (error.response && error.response.data && error.response.data.etapa) {
+        return { etapa: error.response.data.etapa, ...error.response.data };
+      }
+      console.error("Erro ao fazer login PDV:", error);
+      throw error;
+    }
+  },
+
   // Login Parceiro SaaS
   loginParceiroSaas: async (loginData, remember = false) => {
     try {
@@ -104,6 +121,23 @@ export const AuthService = {
       return verificaResponse;
     } catch (error) {
       console.error("Erro ao verificar código de e-mail:", error);
+      throw error;
+    }
+  },
+
+  // Função para verificar código de acesso
+  verificarCodigoAcesso: async (codigo, idCliente) => {
+    try {
+      const response = await apiNoAuth.post(
+        "/cliente/verificar-codigo-acesso",
+        {
+          codigo,
+          id_cliente: idCliente,
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao verificar código de acesso:", error);
       throw error;
     }
   },

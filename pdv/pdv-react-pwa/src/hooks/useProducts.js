@@ -9,7 +9,12 @@ export const useProdutos = () => {
     queryFn: async () => {
       const response = await produtosServices.getProdutos();
       console.log("Response from getProdutos:", response);
-      return response.produtos || [];
+      // Mapear solicita_quantidade para requiresWeight
+      const produtos = (response.produtos || []).map((produto) => ({
+        ...produto,
+        requiresWeight: produto.solicita_quantidade || false,
+      }));
+      return produtos;
     },
     staleTime: 30 * 60 * 1000, // 30 minutos em milissegundos
     cacheTime: 30 * 60 * 1000, // 30 minutos em milissegundos

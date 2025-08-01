@@ -1,11 +1,10 @@
 /**
  * Verifica se o usuário tem permissão para executar uma ação em um módulo
  * @param {Object} user - Objeto do usuário atual
- * @param {string} module - Nome do módulo (ex: 'pdv.products', 'products', 'reports')
- * @param {string} [action] - Ação a ser executada (ex: 'manage', 'view', 'authorize')
+ * @param {string} permission - Permissão a ser verificada (ex: 'pdv.products', 'cash.manage', '*')
  * @returns {boolean} - True se o usuário tem permissão, false caso contrário
  */
-export const hasPermission = (user, module, action) => {
+export const hasPermission = (user, permission) => {
   // Se não há usuário, não tem permissão
   if (!user) {
     console.info("hasPermission: Usuário não encontrado");
@@ -23,17 +22,12 @@ export const hasPermission = (user, module, action) => {
   if (typeof user.permissions === "string") {
     try {
       permissionsArray = JSON.parse(user.permissions);
-      // console.info(
-      //   "hasPermission: Permissões convertidas de string JSON:",
-      //   permissionsArray
-      // );
     } catch (error) {
       console.error("Erro ao fazer parse das permissões:", error);
       return false;
     }
   } else if (Array.isArray(user.permissions)) {
     permissionsArray = user.permissions;
-    // console.info("hasPermission: Permissões já são array:", permissionsArray);
   } else {
     console.info(
       "hasPermission: Formato de permissões inválido:",
@@ -42,23 +36,9 @@ export const hasPermission = (user, module, action) => {
     return false;
   }
 
-  // Monta a permissão requerida
-  let requiredPermission = module;
-  if (action) {
-    requiredPermission = `${module}.${action}`;
-  }
-
-  // Verifica permissão específica, permissão de módulo ou permissão total
+  // Verifica se tem permissão específica ou permissão total (*)
   const hasPermission =
-    permissionsArray.includes(requiredPermission) ||
-    permissionsArray.includes(module) ||
-    permissionsArray.includes("*");
-
-  //  console.info(
-  //   `hasPermission: Verificando ${requiredPermission} em [${permissionsArray.join(
-  //     ", "
-  //   )}] = ${hasPermission}`
-  // );
+    permissionsArray.includes(permission) || permissionsArray.includes("*");
 
   return hasPermission;
 };

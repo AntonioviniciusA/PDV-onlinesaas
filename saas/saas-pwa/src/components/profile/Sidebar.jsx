@@ -8,9 +8,20 @@ import {
   Bell,
   HelpCircle,
   LogOut,
+  Monitor,
 } from "lucide-react";
+import PDVAccessButton from "../landing-components/PDVAccessButton";
+import { useNavigate } from "react-router-dom";
+import { AuthService } from "../../services/authServices";
 
 const Sidebar = ({ activeTab, onTabChange, userType }) => {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    AuthService.clearAuth();
+    navigate("/");
+  };
+
   const clientMenuItems = [
     { id: "profile", label: "Perfil", icon: User },
     { id: "assinaturas", label: "Assinatura", icon: CreditCard },
@@ -59,10 +70,32 @@ const Sidebar = ({ activeTab, onTabChange, userType }) => {
             );
           })}
         </ul>
+
+        {/* Botão de Acesso PDV - apenas para clientes */}
+        {userType === "client" && (
+          <div className="mt-6 pt-4 border-t border-gray-200">
+            <div className="text-xs font-medium text-gray-500 mb-3 px-4">
+              ACESSO PDV
+            </div>
+            <div className="px-2">
+              <PDVAccessButton
+                variant="outline"
+                size="sm"
+                className="w-full justify-center"
+              >
+                <Monitor className="w-4 h-4 mr-2" />
+                Acesso PDV
+              </PDVAccessButton>
+            </div>
+          </div>
+        )}
       </nav>
 
       <div className="p-4 border-t border-gray-200">
-        <button className="w-full flex items-center px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors">
+        <button
+          className="w-full flex items-center px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+          onClick={handleLogout}
+        >
           <LogOut className="w-5 h-5 mr-3" />
           Sair
         </button>

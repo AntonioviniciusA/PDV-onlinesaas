@@ -10,8 +10,10 @@ export const useIsAuthenticated = () => {
       const autenticado = await localAuthService.isAuthenticated();
       return autenticado;
     },
-    staleTime: 20 * 60 * 1000,
-    cacheTime: 20 * 60 * 1000,
+    staleTime: 0, // Sempre buscar dados frescos
+    cacheTime: 5 * 60 * 1000, // Cache por 5 minutos
+    enabled: true,
+    refetchOnWindowFocus: true, // Refazer query quando a janela ganhar foco
   });
 };
 
@@ -23,8 +25,23 @@ export const useUser = () => {
       const user = await localAuthService.getUser?.();
       return user;
     },
-    staleTime: 20 * 60 * 1000,
-    cacheTime: 20 * 60 * 1000,
+    staleTime: 0, // Sempre buscar dados frescos
+    cacheTime: 5 * 60 * 1000, // Cache por 5 minutos
+    refetchOnWindowFocus: true, // Refazer query quando a janela ganhar foco
+  });
+};
+
+// Hook que retorna o status do caixa
+export const useCaixaStatus = () => {
+  return useQuery({
+    queryKey: ["caixa", "status"],
+    queryFn: async () => {
+      // Esta query será gerenciada pelo hook useCaixa
+      return null;
+    },
+    staleTime: 0, // Sempre buscar dados frescos
+    cacheTime: 5 * 60 * 1000, // Cache por 5 minutos
+    refetchOnWindowFocus: true, // Refazer query quando a janela ganhar foco
   });
 };
 
@@ -35,5 +52,6 @@ export const useLogout = () => {
     await localAuthService.logout?.();
     queryClient.invalidateQueries(["auth"]);
     queryClient.invalidateQueries(["user"]);
+    queryClient.invalidateQueries(["caixa"]);
   };
 };

@@ -144,9 +144,36 @@ const meSaas = async (req, res) => {
   }
 };
 
+const verifyTokenSaas = async (req, res) => {
+  try {
+    const { token } = req.body;
+    const resposta = await axios.post(
+      `${process.env.SAAS_URL}/saas/cliente/verificar-token-acesso`,
+      { token }
+    );
+    if (resposta.data.success) {
+      res.cookie("token_saas", resposta.data.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias
+      });
+      res.json({ success: true, user: resposta.data.user });
+    } else {
+      res.status(401).json({ success: false, message: "Token inválido" });
+    }
+  } catch (error) {
+    console.error("Erro ao verificar token SaaS:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Erro ao verificar token" });
+  }
+};
+
 module.exports = {
   verifySubscription,
   verificarBancoExiste,
   loginSaas,
   meSaas,
+  verifyTokenSaas,
 };

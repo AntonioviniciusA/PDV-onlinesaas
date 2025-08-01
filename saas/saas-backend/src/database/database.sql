@@ -96,5 +96,26 @@ CREATE TABLE IF NOT EXISTS `codigos_verificacao` (
    FOREIGN KEY (`id_cliente`) REFERENCES `cliente`(`id`)
 );
 
+-- Nova tabela para códigos de acesso de 6 dígitos após login bem-sucedido
+CREATE TABLE IF NOT EXISTS `codigos_acesso` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `id_cliente` VARCHAR(36) NOT NULL,
+  `codigo` VARCHAR(6) NOT NULL,
+  `tipo_usuario` ENUM('cliente', 'parceiro') NOT NULL,
+  `data_geracao` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `data_expiracao` DATETIME NOT NULL,
+  `usado` BOOLEAN DEFAULT false,
+  `data_uso` DATETIME NULL,
+  `ip_geracao` VARCHAR(45) NULL,
+  `user_agent` TEXT NULL,
+  FOREIGN KEY (`id_cliente`) REFERENCES `cliente`(`id`)
+);
+
+-- Índices para melhor performance
+CREATE INDEX idx_codigos_acesso_cliente ON `codigos_acesso`(`id_cliente`);
+CREATE INDEX idx_codigos_acesso_codigo ON `codigos_acesso`(`codigo`);
+CREATE INDEX idx_codigos_acesso_expiracao ON `codigos_acesso`(`data_expiracao`);
+CREATE INDEX idx_codigos_acesso_usado ON `codigos_acesso`(`usado`);
+
 
 

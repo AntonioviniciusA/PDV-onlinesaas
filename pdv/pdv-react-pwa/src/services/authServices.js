@@ -1,11 +1,16 @@
 import { baseUrl } from "./conection";
 
 export const AuthService = {
-  login: async (payload) => {
+  // Verificar token
+  verifyToken: async (token) => {
     try {
-      const response = await baseUrl.post("/saas/login", payload, {
-        withCredentials: true,
-      });
+      const response = await baseUrl.post(
+        "/saas/verify-token",
+        { token },
+        {
+          withCredentials: true,
+        }
+      );
       return response.data;
     } catch (error) {
       throw error;
