@@ -1,4 +1,4 @@
-DROP DATABASE IF EXISTS pdvlocal;
+-- DROP DATABASE IF EXISTS pdvlocal;
 CREATE DATABASE IF NOT EXISTS pdvlocal;
 USE pdvlocal;
 
@@ -297,9 +297,8 @@ CREATE TABLE IF NOT EXISTS recibo_itens (
 CREATE TABLE IF NOT EXISTS vendas (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `id_loja` VARCHAR(36) NOT NULL,
-  `id_integracao` VARCHAR(50) UNIQUE NOT NULL,
   `id_caixa` INT NOT NULL,
-  `operador_usuario_id` INT,
+  `operador_nome` VARCHAR(255) NOT NULL,
   `data` DATE NOT NULL,
   `total` DECIMAL(10,2) NOT NULL,
   `desconto` DECIMAL(10,2) DEFAULT 0,
@@ -311,7 +310,6 @@ CREATE TABLE IF NOT EXISTS vendas (
   `parcelas_restantes` INT DEFAULT 0,
   `criado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `atualizado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (`operador_usuario_id`) REFERENCES `users`(`id`),
   FOREIGN KEY (`id_caixa`) REFERENCES `caixas`(`id`)
 );
 

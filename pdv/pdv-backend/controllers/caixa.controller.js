@@ -34,7 +34,7 @@ const abrirCaixa = async (req, res) => {
         mensagem: "ID da loja, ID do usuário e valor são obrigatórios",
       });
     }
-    if (!operador || !operador.id) {
+    if (!operador || !operador.nome) {
       return res
         .status(401)
         .json({ sucesso: false, mensagem: "Usuário não autenticado" });
@@ -72,8 +72,8 @@ const abrirCaixa = async (req, res) => {
     // Verificar se o caixa já está aberto pelo operador
     if (numeroCaixa && usuario) {
       const [caixas] = await connection.query(
-        "SELECT id FROM caixas WHERE caixa_numero = ? AND id_loja = ? AND operador_usuario_id = ? AND status = 'aberto'",
-        [numeroCaixa, usuario.id_loja, operador.id]
+        "SELECT id FROM caixas WHERE caixa_numero = ? AND id_loja = ? AND operador_nome = ? AND status = 'aberto'",
+        [numeroCaixa, usuario.id_loja, operador.nome]
       );
       if (caixas.length > 0) {
         return res.status(400).json({
@@ -81,7 +81,7 @@ const abrirCaixa = async (req, res) => {
           mensagem: "Caixa já esta aberto",
           id_caixa: caixas[0].id,
           caixa_numero: numeroCaixa,
-          user_id: operador.id,
+          user_id: operador.nome,
           valor_inicial: valor,
           status: "aberto",
           diferenca: 0,
@@ -94,11 +94,11 @@ const abrirCaixa = async (req, res) => {
     // Verificar se o caixa já está aberto por outro usuário
     if (numeroCaixa && usuario) {
       const [caixaAberto] = await connection.query(
-        "SELECT id, operador_usuario_id FROM caixas WHERE caixa_numero = ? AND id_loja = ? AND status = 'aberto'",
+        "SELECT id, operador_nome FROM caixas WHERE caixa_numero = ? AND id_loja = ? AND status = 'aberto'",
         [numeroCaixa, usuario.id_loja]
       );
       if (caixaAberto.length > 0) {
-        if (caixaAberto[0].operador_usuario_id !== operador.id) {
+        if (caixaAberto[0].operador_nome !== operador.nome) {
           return res.status(400).json({
             sucesso: false,
             mensagem: "Caixa já esta aberto por outro usuario",
@@ -128,12 +128,12 @@ const abrirCaixa = async (req, res) => {
            valor_inicial = ?, 
            token = ?, 
            abertura_autorizador_id = ?, 
-           operador_usuario_id = ?,
+           operador_nome = ?,
            fechamento_autorizador_id = NULL,
            criado_em = NOW(),
            atualizado_em = NOW()
            WHERE id = ?`,
-          [valor, token, usuario.id, operador.id, caixa.id]
+          [valor, token, usuario.id, operador.nome, caixa.id]
         );
 
         if (updateResult.affectedRows > 0) {
@@ -144,7 +144,7 @@ const abrirCaixa = async (req, res) => {
             status: "aberto",
             valor_inicial: valor,
             abertura_autorizador_id: usuario.id,
-            operador_usuario_id: operador.id,
+            operador_nome: operador.nome,
             token: token,
             criado_em: new Date(),
             atualizado_em: new Date(),
@@ -184,7 +184,7 @@ const abrirCaixa = async (req, res) => {
     ).join("");
 
     const [caixa] = await connection.query(
-      "INSERT INTO caixas (id_loja, caixa_numero, status, valor_inicial, token, abertura_autorizador_id, operador_usuario_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO caixas (id_loja, caixa_numero, status, valor_inicial, token, abertura_autorizador_id, operador_nome) VALUES (?, ?, ?, ?, ?, ?, ?)",
       [
         usuario.id_loja,
         numeroCaixa,
@@ -192,7 +192,7 @@ const abrirCaixa = async (req, res) => {
         valor,
         token,
         usuario.id, // Usar o ID do usuário autorizador
-        operador.id,
+        operador.nome,
       ]
     );
 
@@ -203,7 +203,7 @@ const abrirCaixa = async (req, res) => {
       status: "aberto",
       valor_inicial: valor,
       abertura_autorizador_id: usuario.id,
-      operador_usuario_id: operador.id,
+      operador_nome: operador.nome,
       token: token,
       criado_em: new Date(),
       atualizado_em: new Date(),
@@ -433,7 +433,7 @@ const getCaixasAbertos = async (req, res) => {
   try {
     connection = await pool.getConnection();
     const [caixas] = await connection.query(
-      "SELECT id, caixa_numero, status, valor_inicial, abertura_autorizador_id, operador_usuario_id, criado_em, atualizado_em FROM caixas WHERE status = 'aberto' AND id_loja = ?",
+      "SELECT id, caixa_numero, status, valor_inicial, abertura_autorizador_id, operador_nome, criado_em, atualizado_em FROM caixas WHERE status = 'aberto' AND id_loja = ?",
       [req.user.id_loja]
     );
     return res.status(200).json({ caixas });
@@ -453,7 +453,7 @@ const getCaixasFechados = async (req, res) => {
   try {
     connection = await pool.getConnection();
     const [caixas] = await connection.query(
-      "SELECT id, caixa_numero, status, valor_inicial, abertura_autorizador_id, operador_usuario_id, criado_em, atualizado_em FROM caixas WHERE status = 'fechado' AND id_loja = ?",
+      "SELECT id, caixa_numero, status, valor_inicial, abertura_autorizador_id, operador_nome, criado_em, atualizado_em FROM caixas WHERE status = 'fechado' AND id_loja = ?",
       [req.user.id_loja]
     );
     return res.status(200).json({ caixas });
@@ -566,9 +566,8 @@ const getHistoricoCaixas = async (req, res) => {
     let queryVendas = `
       SELECT 
         v.id,
-        v.id_integracao,
         v.id_caixa,
-        v.operador_usuario_id,
+        v.operador_nome,
         v.data,
         v.total,
         v.desconto,
@@ -583,7 +582,7 @@ const getHistoricoCaixas = async (req, res) => {
         u.nome as operador_nome,
         c.caixa_numero
       FROM vendas v
-      LEFT JOIN users u ON v.operador_usuario_id = u.id
+      LEFT JOIN users u ON v.operador_nome = u.nome
       LEFT JOIN caixas c ON v.id_caixa = c.id
       WHERE v.id_loja = ?
     `;
@@ -592,7 +591,7 @@ const getHistoricoCaixas = async (req, res) => {
 
     // Adiciona filtros dinamicamente
     if (n_venda) {
-      queryVendas += " AND v.id_integracao LIKE ?";
+      queryVendas += " AND v.id LIKE ?";
       valuesVendas.push(`%${n_venda}%`);
     }
 
@@ -676,30 +675,28 @@ const getHistoricoCaixas = async (req, res) => {
     if (connection) connection.release();
   }
 };
-
 const finalizarVenda = async (req, res) => {
   let connection;
-  try {
-    const {
-      cart,
-      total,
-      discount,
-      discountType,
-      discountValue,
-      paymentMethod,
-      selectedCardType,
-      mixedPayments,
-      receivedAmount,
-      changeAmount,
-      receiptType,
-      user,
-      pixPaymentConfirmed,
-      caixaId,
-      isOnline = true,
-    } = req.body;
+  const {
+    items,
+    total,
+    discount,
+    discountType,
+    discountValue,
+    paymentMethod,
+    selectedCardType,
+    mixedPayments,
+    receivedAmount,
+    changeAmount,
+    receiptType,
+    user,
+    pixPaymentConfirmed,
+  } = req.body;
 
-    // Validações básicas
-    if (!cart || cart.length === 0) {
+  console.log("Finalizando venda com dados:", req.body);
+
+  try {
+    if (!items || items.length === 0) {
       return res.status(400).json({
         sucesso: false,
         mensagem: "Carrinho vazio",
@@ -720,22 +717,18 @@ const finalizarVenda = async (req, res) => {
       });
     }
 
-    // Verificar se o usuário tem id_loja
     if (!req.user.id_loja) {
       console.log("Usuário sem id_loja, usando padrão");
       req.user.id_loja = "00000000-0000-0000-0000-000000000000";
     }
 
+    const caixaId = JSON.parse(req.cookies.caixa_session).id;
+    console.log("Caixa ID:", caixaId);
+
     connection = await pool.getConnection();
     await connection.beginTransaction();
 
     try {
-      // Gerar ID de integração único
-      const idIntegracao = `VDA${Date.now()}${Math.random()
-        .toString(36)
-        .substr(2, 9)}`;
-
-      // Determinar forma de pagamento final
       let formaPagamentoFinal = paymentMethod;
       if (mixedPayments && mixedPayments.length > 0) {
         formaPagamentoFinal = "misto";
@@ -743,24 +736,21 @@ const finalizarVenda = async (req, res) => {
         formaPagamentoFinal = selectedCardType;
       }
 
-      // Calcular desconto
       const descontoFinal =
         discountType === "percentage"
           ? (total * discount) / 100
           : discountValue || 0;
 
-      // 1. Salvar venda na tabela vendas
       const [vendaResult] = await connection.query(
         `INSERT INTO vendas (
-          id_loja, id_integracao, id_caixa, operador_usuario_id, 
+          id_loja, id_caixa, operador_nome, 
           data, total, desconto, status, tipo, forma_pagamento
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           req.user.id_loja,
-          idIntegracao,
-          caixaId || 1, // Usar caixa padrão se não especificado
-          req.user.id,
-          getCurrentUTCDate(), // Data atual em UTC (YYYY-MM-DD)
+          caixaId,
+          req.user.nome,
+          getCurrentUTCDate(),
           total,
           descontoFinal,
           "pago",
@@ -771,8 +761,7 @@ const finalizarVenda = async (req, res) => {
 
       const vendaId = vendaResult.insertId;
 
-      // 2. Salvar itens da venda
-      for (const item of cart) {
+      for (const item of items) {
         await connection.query(
           `INSERT INTO venda_itens (
             id_loja, venda_id, produto_codigo, descricao, 
@@ -792,12 +781,10 @@ const finalizarVenda = async (req, res) => {
         );
       }
 
-      // 3. Preparar dados do cupom/recibo
       const cupomData = {
         id: vendaId,
-        numero: idIntegracao,
         timestamp: new Date().toISOString(),
-        items: cart,
+        items: items,
         total: total,
         discount: discount,
         discountType: discountType,
@@ -812,64 +799,25 @@ const finalizarVenda = async (req, res) => {
         pixPaymentConfirmed: pixPaymentConfirmed,
       };
 
-      // 4. Salvar cupom na tabela cupom
-      await connection.query(
-        `INSERT INTO cupom (
-          id_loja, numero, user_nome, timestamp, total, desconto, 
-          payment_method, received_amount, change_amount, itens, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          req.user.id_loja,
-          idIntegracao,
-          user?.name || req.user.nome,
-          new Date(),
-          total,
-          descontoFinal,
-          formaPagamentoFinal,
-          receivedAmount || 0,
-          changeAmount || 0,
-          JSON.stringify(cart),
-          isOnline ? "online" : "offline",
-        ]
-      );
-
-      // // 5. Chamar função de impressão baseada no tipo de recibo
-      // let printResult = null;
-      // try {
-      //   const {
-      //     imprimirCupomThermal,
-      //     imprimirReciboThermal,
-      //     imprimirCupomOffline,
-      //     imprimirReciboOffline,
-      //   } = require("./cupom.controller.js");
-
-      //   // Criar objetos mock de req e res para as funções de impressão
-      //   const mockReq = { body: cupomData };
-      //   const mockRes = {
-      //     json: (data) => {
-      //       printResult = data;
-      //       return mockRes;
-      //     },
-      //     status: (code) => mockRes,
-      //   };
-
-      //   if (isOnline) {
-      //     if (receiptType === "fiscal") {
-      //       await imprimirCupomThermal(mockReq, mockRes);
-      //     } else {
-      //       await imprimirReciboThermal(mockReq, mockRes);
-      //     }
-      //   } else {
-      //     if (receiptType === "fiscal") {
-      //       await imprimirCupomOffline(mockReq, mockRes);
-      //     } else {
-      //       await imprimirReciboOffline(mockReq, mockRes);
-      //     }
-      //   }
-      // } catch (printError) {
-      //   console.error("Erro na impressão:", printError);
-      //   // Não falhar a venda se a impressão falhar
-      // }
+      // await connection.query(
+      //   `INSERT INTO cupom (
+      //     id_loja, numero, user_nome, timestamp, total, desconto,
+      //     payment_method, received_amount, change_amount, itens, status
+      //   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      //   [
+      //     req.user.id_loja,
+      //     idIntegracao,
+      //     user?.name || req.user.nome,
+      //     new Date(),
+      //     total,
+      //     descontoFinal,
+      //     formaPagamentoFinal,
+      //     receivedAmount || 0,
+      //     changeAmount || 0,
+      //     JSON.stringify(items),
+      //     isOnline ? "online" : "offline",
+      //   ]
+      // );
 
       await connection.commit();
 
@@ -878,14 +826,12 @@ const finalizarVenda = async (req, res) => {
         mensagem: "Venda finalizada com sucesso",
         venda: {
           id: vendaId,
-          idIntegracao: idIntegracao,
           total: total,
           desconto: descontoFinal,
           formaPagamento: formaPagamentoFinal,
           status: "pago",
           criadoEm: new Date(),
         },
-        impressao: printResult,
       });
     } catch (error) {
       await connection.rollback();

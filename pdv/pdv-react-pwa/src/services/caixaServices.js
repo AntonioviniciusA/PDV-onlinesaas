@@ -114,6 +114,29 @@ export const caixaService = {
       throw error;
     }
   },
+  getHistoricoCaixas: async (
+    searchTerm,
+    dateFilter,
+    paymentFilter,
+    caixaOperacaoFilter
+  ) => {
+    try {
+      const response = await baseUrl.get("/caixa/historico", {
+        params: {
+          searchTerm,
+          dateFilter,
+          paymentFilter,
+          caixaOperacaoFilter,
+        },
+        withCredentials: true,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao buscar histórico de caixas:", error);
+      throw error;
+    }
+  },
+
   finalizarVenda: async (cupomData) => {
     try {
       const response = await baseUrl.post("/caixa/finalizar-venda", cupomData, {

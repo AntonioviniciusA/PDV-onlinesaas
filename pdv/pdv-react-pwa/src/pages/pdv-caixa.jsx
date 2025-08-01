@@ -185,6 +185,7 @@ export default function PDVCaixa() {
 
   // Modificar addToCart para aceitar quantidade
   const addToCart = (product, weight, qty = 1) => {
+    console.table("product:", product);
     if (product.requiresWeight && !weight) {
       setSelectedProductForWeight(product);
       setShowWeightDialog(true);
@@ -561,8 +562,6 @@ export default function PDVCaixa() {
 
     // Preparar dados do cupom para salvamento
     const cupomData = {
-      id: Date.now().toString(),
-      timestamp: new Date().toISOString(),
       items: cart,
       total: total,
       discount: discount,
@@ -809,7 +808,7 @@ export default function PDVCaixa() {
       {/* Botão flutuante para abrir o nav */}
       {!showNav && (
         <button
-          className="fixed top-7 left-1 z-50 bg-white border rounded-full shadow p-2 hover:bg-gray-100 transition"
+          className="fixed top-1 left-1 z-50 bg-white border rounded-full shadow p-1 hover:bg-gray-100 transition"
           onClick={() => setShowNav(true)}
           title="Abrir menu"
         >

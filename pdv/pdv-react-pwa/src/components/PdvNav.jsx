@@ -6,18 +6,16 @@ import {
   Tag,
   History,
   X,
-  User,
-  LogOut,
   Settings,
   Maximize2,
   Minimize2,
   Circle,
 } from "lucide-react";
 import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
-import { localAuthService } from "../services/localAuthService";
 import { useConfiguracoes } from "../hooks/useConfiguracoes";
 import { useCaixa } from "../hooks/useCaixa";
 import { useCaixaStatus } from "../hooks/useAuth";
+import { UserDropdown } from "./UserDropdown";
 
 export default function PdvNav({
   shortcuts = [],
@@ -82,7 +80,7 @@ export default function PdvNav({
       {/* Botão para fechar o nav */}
       {onCloseNav && (
         <button
-          className="absolute top-7 left-2 z-50 bg-white border rounded-full shadow p-1 hover:bg-gray-100 transition"
+          className="absolute top-1 left-1 z-50 bg-white border rounded-full shadow p-1 hover:bg-gray-100 transition"
           onClick={onCloseNav}
           title="Fechar menu"
         >
@@ -91,13 +89,8 @@ export default function PdvNav({
       )}
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-white">Caixa</h1>
-            <p className="text-sm text-white">Ponto de Venda</p>
-          </div>
-
           {/* Indicador de status do caixa */}
-          <div className="flex items-center gap-2 bg-gray-800 rounded-lg px-3 py-2">
+          <div className="flex items-center bg-gray-800 rounded-lg px-3 py-2 gap-2 mx-2">
             {caixaLoading ? (
               <div className="text-white text-sm">Carregando...</div>
             ) : (
@@ -209,30 +202,7 @@ export default function PdvNav({
               <span className="hidden sm:inline">Configurações</span>
             </Button>
           )}
-          <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-center cursor-pointer">
-            <User
-              className="w-4 h-4"
-              width={20}
-              height={20}
-              color="black"
-              strokeWidth={2}
-              fill="white"
-            />
-          </div>
-
-          <div className="flex flex-col">
-            <p className="text-sm text-white font-bold">
-              {user?.nome || "Usuário"}
-            </p>
-            <p className="text-xs text-white">{user?.perfil || "Perfil"}</p>
-          </div>
-          <div
-            className="bg-white p-1 rounded-md border border-gray-300 flex items-center justify-center text-center cursor-pointer"
-            onClick={() => localAuthService.clearAuth()}
-          >
-            <LogOut className="w-4 h-4 mr-2" color="black" strokeWidth={2} />
-            <p className="text-xs text-black font-bold">Sair</p>
-          </div>
+          <UserDropdown user={user} />
         </div>
       </div>
     </div>

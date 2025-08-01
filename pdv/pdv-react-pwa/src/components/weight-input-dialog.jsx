@@ -24,7 +24,7 @@ export function WeightInputDialog({ open, onOpenChange, product, onConfirm }) {
   }, [open]);
 
   const weightValue = Number.parseFloat(weight) || 0;
-  const totalPrice = product ? weightValue * product.price : 0;
+  const totalpreco_venda = product ? weightValue * product.preco_venda : 0;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -83,7 +83,7 @@ export function WeightInputDialog({ open, onOpenChange, product, onConfirm }) {
               <div className="text-center">
                 <p className="font-semibold text-blue-900">{product.name}</p>
                 <p className="text-sm text-blue-600">
-                  R$ {product.price.toFixed(2)} por kg
+                  R$ {product.preco_venda.toFixed(2)} por kg
                 </p>
               </div>
             </div>
@@ -135,10 +135,11 @@ export function WeightInputDialog({ open, onOpenChange, product, onConfirm }) {
                 <div className="text-center">
                   <p className="text-sm text-gray-600">Total a Pagar</p>
                   <p className="text-2xl font-bold text-green-600">
-                    R$ {totalPrice.toFixed(2)}
+                    R$ {totalpreco_venda.toFixed(2)}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    {weightValue.toFixed(3)} kg × R$ {product.price.toFixed(2)}
+                    {weightValue.toFixed(3)} kg × R${" "}
+                    {product.preco_venda.toFixed(2)}
                   </p>
                 </div>
               </div>

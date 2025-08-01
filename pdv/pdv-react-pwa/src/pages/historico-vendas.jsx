@@ -64,7 +64,7 @@ export default function HistoricoVendas() {
       try {
         setLoading(true);
         setError(null);
-        const response = await caixaService.getHistoricoVendas(
+        const response = await caixaService.getHistoricoCaixas(
           searchTerm || undefined,
           dateFilter || undefined,
           paymentFilter === "todos" ? undefined : paymentFilter,
@@ -72,8 +72,6 @@ export default function HistoricoVendas() {
         );
         if (response.sucesso) {
           setSalesData(response.vendas || []);
-        } else {
-          setError(response.mensagem || "Erro ao carregar histórico");
         }
       } catch (err) {
         console.error("Erro ao carregar histórico:", err);
